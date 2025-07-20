@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# mt - source this file
+
+mt() {
+  # Convert DEBUG=1 to MT_LOG_LEVEL=DEBUG
+  if [[ -n "${DEBUG}" ]]; then
+    export MT_LOG_LEVEL=DEBUG
+  fi
+
+  # Get path to script and root of project
+  command -v realpath &>/dev/null || {
+    echo "Error: 'realpath' is required but not found. Please install 'coreutils' (e.g. 'brew install coreutils' on macOS)." >&2
+    exit 1
+  }
+  SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+  SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
+  export MT_ROOT="$(dirname -- "${SCRIPT_DIR}")"
+
+  # Load core functions
+  source "${MT_ROOT}/lib/functions.sh" # Must be loaded first (I think)
+
+  source "${MT_ROOT}/lib/colors.sh"
+  source "${MT_ROOT}/lib/edit.sh"
+  source "${MT_ROOT}/lib/git.sh"
+  source "${MT_ROOT}/lib/path.sh"
+  source "${MT_ROOT}/lib/stow.sh"
+  source "${MT_ROOT}/lib/sync.sh"
+
+  # Initialise globals
+  : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
+
+  # Dirs for pkg files/symlinks
+  # Symlink or copy to here and then symlink to target
+  # Provides single choke point for MT packages (rename dir to disable)
+  : ${MT_PKG_DIR:="${HOME}/.metool"}
+  export MT_PKG_DIR
+
+  _mt_log DEBUG "SCRIPT_PATH=${SCRIPT_PATH}"
+  _mt_log DEBUG "MT_ROOT=${MT_ROOT}"
+
+  # Ensure pkg dirs exist
+  mkdir -p "${MT_PKG_DIR}/bin"
+  # mkdir -p "${MT_PKG_DIR}/config" # Not used currently
+  mkdir -p "${MT_PKG_DIR}/shell"
+
+  # Parse command
+  if [[ $# -eq 0 ]]; then
+
+    ## Ensure MT_BIN_DIR is in PATH
+    _mt_path_prepend "${MT_PKG_DIR}/bin"
+
+    # Source all files under MT_PKG_DIR/shell
+    if [[ -d "${MT_PKG_DIR}/shell" ]]; then
+      while IFS= read -r -d '' file; do
+        if [[ "$(realpath "$file")" == "${SCRIPT_PATH}" ]]; then
+          #if [[ "$(realpath "$file")" =~ "${MT_ROOT}" ]]; then
+          _mt_log DEBUG "Not sourcing myself ($SCRIPT_PATH): $file"
+        else
+          _mt_log DEBUG "Sourcing $file"
+          source "$file"
+        fi
+      done < <(find -L "${MT_PKG_DIR}/shell" -type f -not -name ".*" -print0 | sort -z)
+      # Setup bash completion for aliases
+      complete -F _complete_alias "${!BASH_ALIASES[@]}"
+    fi
+
+  else
+
+    case $1 in
+    -h | --help)
+      echo "Usage: mt [command]"
+      echo
+      echo "Core Commands:"
+      echo "  cd [TARGET]            Change to MT_ROOT or specified target"
+      echo "  clone URL [PATH]       Clone a git repository to a canonical location"
+      echo "                         (or show status if already cloned)"
+      echo "  edit TARGET            Edit function, executable, package or file"
+      echo "                         Use 'package/NAME' to explicitly edit a package README"
+      echo "  install [options] [DIR] Symlink package directories: bin,config,shell (defaults to MT_ROOT)"
+      echo "  modules                List all metool modules (collections of packages)"
+      echo "  packages               List all metool packages with their parent modules"
+      echo "  components             List all package components (bin, shell, config, etc.)"
+      echo "  sync [DIR|FILE]        Sync repositories from repos.txt manifest file"
+      echo "  update                 Update metool from git"
+      echo "  reload                 Reload metool"
+      echo "  --help                 Show this help message and exit"
+      echo
+      ;;
+    cd)
+      shift
+      if [[ $# -eq 1 ]]; then
+        _mt_log DEBUG "\$1=$1"
+        _mt_cd "$1"
+      else
+        echo "Changing directory to: $MT_ROOT"
+        cd "$MT_ROOT"
+      fi
+      ;;
+    clone)
+      shift
+      _mt_clone "$@"
+      ;;
+    edit)
+      shift
+      _mt_edit "$@"
+      ;;
+    install)
+      shift
+      # If no arguments provided, default to MT_ROOT
+      if [[ $# -eq 0 ]]; then
+        _mt_stow "$MT_ROOT"
+      else
+        _mt_stow "$@"
+      fi
+      ;;
+    update)
+      shift
+      _mt_update
+      ;;
+    reload)
+      shift
+      _mt_source "${MT_ROOT}/shell/mt"
+      ;;
+    modules)
+      shift
+      _mt_get_modules | columnise
+      ;;
+    packages)
+      shift
+      _mt_get_packages | columnise
+      ;;
+    components)
+      shift
+      # Get all packages and list their components
+      local packages=$(_mt_get_packages)
+
+      # If an argument is provided, filter by package name
+      if [[ $# -eq 1 ]]; then
+        packages=$(echo "$packages" | grep -E "^$1\t")
+      fi
+
+      # Print header
+      printf "%-15s %-20s %-40s %s\n" "COMPONENT" "PACKAGE" "MODULE" "PATH"
+      printf "%-15s %-20s %-40s %s\n" "----------" "-------" "------" "----"
+
+      while IFS=$'\t' read -r pkg_name module_name pkg_dir; do
+        # For each package directory, list its components
+        for component in bin shell config docs lib libexec; do
+          if [[ -d "$pkg_dir/$component" ]]; then
+            printf "%-15s %-20s %-40s %s\n" "$component" "$pkg_name" "$module_name" "${pkg_dir}/${component}"
+          fi
+        done
+      done <<<"$packages"
+      ;;
+    sync)
+      shift
+      _mt_sync "$@"
+      ;;
+    *)
+      _mt_error "Unknown command: $1"
+      return 1
+      ;;
+    esac
+
+  fi
+}
+
+mt "$@"
