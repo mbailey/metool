@@ -50,7 +50,7 @@ _mt_edit() {
       _mt_confirm "Package '$package_name' doesn't exist in module '$module_name'.\nWould you like to create it at: $package_path?"
       if [[ $? -eq 0 ]]; then
         _mt_info "Creating package directory: $package_path"
-        mkdir -p "$package_path"
+        command mkdir -p "$package_path"
         local readme_path="${package_path}/README.md"
         _mt_info "Creating README.md for package '$package_name'"
         echo "# ${package_name}" >"${readme_path}"

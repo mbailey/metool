@@ -73,7 +73,7 @@ setup() {
     
     # Simulate creating symlinks
     if [[ -d "${dir}/${pkg}" ]]; then
-      find "${dir}/${pkg}" -type f -o -type l | while read -r file; do
+      command find "${dir}/${pkg}" -type f -o -type l | while read -r file; do
         rel_path="${file#${dir}/${pkg}/}"
         target_path="${target}/${rel_path}"
         

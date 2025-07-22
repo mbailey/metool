@@ -76,21 +76,21 @@ _mt_stow() {
 
     # Handle bin/
     if [[ -d "${pkg_path}/bin" ]]; then
-      mkdir -p "${MT_PKG_DIR}/bin"
+      command mkdir -p "${MT_PKG_DIR}/bin"
       if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${pkg_path}" --target="${MT_PKG_DIR}/bin" bin &>/tmp/mt_stow_output; then
         pkg_status+="${MT_COLOR_INFO}bin${MT_COLOR_RESET} "
       else
         pkg_status+="${MT_COLOR_ERROR}bin${MT_COLOR_RESET} "
         pkg_had_error=true
         had_errors=true
-        cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:bin] /" >&2
+        command cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:bin] /" >&2
       fi
     fi
 
     # Handle config/
     if [[ -d "${pkg_path}/config" ]]; then
       # First, create an intermediate directory for configs
-      mkdir -p "${MT_PKG_DIR}/config/${pkg_name}"
+      command mkdir -p "${MT_PKG_DIR}/config/${pkg_name}"
 
       # Stow from package to metool config dir
       if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${pkg_path}" --target="${MT_PKG_DIR}/config/${pkg_name}" config &>/tmp/mt_stow_output; then
@@ -103,7 +103,7 @@ _mt_stow() {
           had_errors=true
           
           # Enhanced conflict resolution
-          cat /tmp/mt_stow_output_2 | sed "s/^/[${pkg_name}:config->home] /" >&2
+          command cat /tmp/mt_stow_output_2 | sed "s/^/[${pkg_name}:config->home] /" >&2
           
           # Extract conflict files from stow output
           local conflict_files=()
@@ -150,7 +150,7 @@ _mt_stow() {
               _mt_confirm "  Remove this conflicting item and try again?"
               if [[ $? -eq 0 ]]; then
                 echo -e "  ${MT_COLOR_INFO}→ Removing ${conflict_path}...${MT_COLOR_RESET}"
-                rm -f "${conflict_path}"
+                command rm -f "${conflict_path}"
                 
                 # Try stowing again after resolving conflict
                 if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${MT_PKG_DIR}/config" --target="${HOME}" --dotfiles "${pkg_name}" &>/tmp/mt_stow_retry; then
@@ -161,7 +161,7 @@ _mt_stow() {
                   had_errors=false  # This might need to be set at a higher level based on other errors
                 else
                   echo -e "  ${MT_COLOR_ERROR}→ Still having issues after conflict resolution:${MT_COLOR_RESET}"
-                  cat /tmp/mt_stow_retry | sed "s/^/    /" >&2
+                  command cat /tmp/mt_stow_retry | sed "s/^/    /" >&2
                 fi
               else
                 echo -e "  ${MT_COLOR_WARNING}→ Skipping conflict resolution for this item${MT_COLOR_RESET}"
@@ -173,20 +173,20 @@ _mt_stow() {
         pkg_status+="${MT_COLOR_ERROR}config${MT_COLOR_RESET} "
         pkg_had_error=true
         had_errors=true
-        cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:config->metool] /" >&2
+        command cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:config->metool] /" >&2
       fi
     fi
 
     # Handle shell/
     if [[ -d "${pkg_path}/shell" ]]; then
-      mkdir -p "${MT_PKG_DIR}/shell/${pkg_name}"
+      command mkdir -p "${MT_PKG_DIR}/shell/${pkg_name}"
       if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${pkg_path}" --target="${MT_PKG_DIR}/shell/${pkg_name}" shell &>/tmp/mt_stow_output; then
         pkg_status+="${MT_COLOR_INFO}shell${MT_COLOR_RESET} "
       else
         pkg_status+="${MT_COLOR_ERROR}shell${MT_COLOR_RESET} "
         pkg_had_error=true
         had_errors=true
-        cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:shell] /" >&2
+        command cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:shell] /" >&2
       fi
     fi
 
@@ -214,7 +214,7 @@ _mt_stow() {
   fi
 
   # Clean up temp file
-  rm -f /tmp/mt_stow_output
+  command rm -f /tmp/mt_stow_output
 
   # If metool itself was installed and no errors occurred, offer to update .bashrc
   for pkg_path in "${pkg_paths[@]}"; do

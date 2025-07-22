@@ -49,11 +49,11 @@ tmux:
 		\
 		echo "Setting up panes..."; \
 		tmux send-keys -t "$$TMUX_TARGET" "echo \"=== File Watcher ===\" && echo \"Watching lib/ and shell/ for changes...\"" Enter; \
-		tmux send-keys -t "$$TMUX_TARGET" "find lib shell -name \"*.sh\" -o -name \"mt\" -o -name \"aliases\" -o -name \"functions\" | entr -c ls -la" Enter; \
+		tmux send-keys -t "$$TMUX_TARGET" "command find lib shell -name \"*.sh\" -o -name \"mt\" -o -name \"aliases\" -o -name \"functions\" | entr -c ls -la" Enter; \
 		\
 		tmux split-window -t "$$TMUX_TARGET" -v -p 70 -c "$$PROJECT_ROOT"; \
 		tmux send-keys -t "$$TMUX_TARGET.1" "echo \"=== Test Runner ===\" && echo \"Running tests in watch mode...\"" Enter; \
-		tmux send-keys -t "$$TMUX_TARGET.1" "MT_LOG_LEVEL=DEBUG find tests lib shell -name \"*.bats\" -o -name \"*.sh\" -o -name \"mt\" | entr -c make test" Enter; \
+		tmux send-keys -t "$$TMUX_TARGET.1" "MT_LOG_LEVEL=DEBUG command find tests lib shell -name \"*.bats\" -o -name \"*.sh\" -o -name \"mt\" | entr -c make test" Enter; \
 		\
 		tmux split-window -t "$$TMUX_TARGET.1" -h -p 50 -c "$$PROJECT_ROOT"; \
 		tmux send-keys -t "$$TMUX_TARGET.2" "echo \"=== Debug Logs ===\" && echo \"Monitoring metool debug output...\"" Enter; \
@@ -138,6 +138,6 @@ mcp-clean:
 	@echo "Cleaning MCP build artifacts..."
 	@cd mcp && rm -rf dist/ build/ *.egg-info
 	@cd mcp && rm -rf .pytest_cache __pycache__ tests/__pycache__
-	@find mcp -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@find mcp -type f -name "*.pyc" -delete 2>/dev/null || true
+	@command find mcp -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@command find mcp -type f -name "*.pyc" -delete 2>/dev/null || true
 	@echo "MCP clean complete!"

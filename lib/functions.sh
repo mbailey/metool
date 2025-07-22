@@ -160,7 +160,7 @@ _mt_get_modules() {
   local cache_dir="${MT_PKG_DIR}/.cache"
   local cache_file="${cache_dir}/modules.tsv"
   local timestamp_file="${cache_dir}/last_update"
-  mkdir -p "${cache_dir}"
+  command mkdir -p "${cache_dir}"
   
   # Check if we need to regenerate the cache
   if _mt_cache_needs_update "${cache_file}" "${timestamp_file}"; then
@@ -206,7 +206,7 @@ _mt_get_modules() {
             module_paths+=("$module_dir")
           fi
         fi
-      done < <(find "${MT_PKG_DIR}/bin" -type l -print0)
+      done < <(command find "${MT_PKG_DIR}/bin" -type l -print0)
     fi
     
     # Process shell directory symlinks
@@ -246,7 +246,7 @@ _mt_get_modules() {
             module_paths+=("$module_dir")
           fi
         fi
-      done < <(find "${MT_PKG_DIR}/shell" -type l -print0 2>/dev/null)
+      done < <(command find "${MT_PKG_DIR}/shell" -type l -print0 2>/dev/null)
     fi
     
     # Always include metool itself as a module if not already found
@@ -262,14 +262,14 @@ _mt_get_modules() {
     done
     
     # Sort the cache file
-    sort "${cache_file}" -o "${cache_file}"
+    command sort "${cache_file}" -o "${cache_file}"
     
     # Update the timestamp file
-    touch "${timestamp_file}"
+    command touch "${timestamp_file}"
   fi
   
   # Output the modules from cache
-  cat "${cache_file}"
+  command cat "${cache_file}"
 }
 
 # Get all metool packages (with caching)
@@ -280,7 +280,7 @@ _mt_get_packages() {
   local cache_dir="${MT_PKG_DIR}/.cache"
   local cache_file="${cache_dir}/packages.tsv"
   local timestamp_file="${cache_dir}/last_update"
-  mkdir -p "${cache_dir}"
+  command mkdir -p "${cache_dir}"
   
   # Check if we need to regenerate the cache
   if _mt_cache_needs_update "${cache_file}" "${timestamp_file}"; then
@@ -291,9 +291,9 @@ _mt_get_packages() {
       for dir in "bin" "shell"; do
         if [[ -d "${MT_PKG_DIR}/${dir}" ]]; then
           _mt_log DEBUG "_mt_get_packages: Searching for packages in ${MT_PKG_DIR}/${dir}"
-          find "${MT_PKG_DIR}/${dir}" -type l -print0 2>/dev/null | 
+          command find "${MT_PKG_DIR}/${dir}" -type l -print0 2>/dev/null | 
             xargs -0 readlink -f | 
-            grep "/${dir}/" | 
+            command grep "/${dir}/" | 
             sed "s|/${dir}/.*$||" | 
             while read pkg_path; do
               pkg_name=$(basename "$pkg_path")
@@ -319,14 +319,14 @@ _mt_get_packages() {
       # Add metool itself
       echo -e "metool\tmetool\t${MT_ROOT}"
       
-    } | sort -u -k2,2 -k1,1 > "${cache_file}"
+    } | command sort -u -k2,2 -k1,1 > "${cache_file}"
     
     # Update the timestamp file
-    touch "${timestamp_file}"
+    command touch "${timestamp_file}"
   fi
   
   # Output the packages from cache
-  cat "${cache_file}"
+  command cat "${cache_file}"
 }
 
 # Function to check and offer to update .bashrc
@@ -342,7 +342,7 @@ _mt_update_bashrc() {
   fi
 
   # Check if metool is already in .bashrc
-  if grep -q "metool/shell/metool/mt" "$bashrc"; then
+  if command grep -q "metool/shell/metool/mt" "$bashrc"; then
     # Don't show the "already configured" message - just return silently
     return 0
   fi
@@ -469,7 +469,7 @@ _mt_cache_needs_update() {
   for dir in "bin" "shell"; do
     if [[ -d "${MT_PKG_DIR}/${dir}" ]]; then
       # Find the newest file in the directory
-      local newest_file=$(find "${MT_PKG_DIR}/${dir}" -type l -newer "${timestamp_file}" -print -quit)
+      local newest_file=$(command find "${MT_PKG_DIR}/${dir}" -type l -newer "${timestamp_file}" -print -quit)
       if [[ -n "${newest_file}" ]]; then
         _mt_log DEBUG "Found newer files in ${dir}, will regenerate cache"
         return 0
@@ -484,11 +484,11 @@ _mt_cache_needs_update() {
 # Function to invalidate the cache
 _mt_invalidate_cache() {
   _mt_log DEBUG "Invalidating package and module cache"
-  rm -f "${MT_PKG_DIR}/.cache/packages.tsv"
-  rm -f "${MT_PKG_DIR}/.cache/modules.tsv"
+  command rm -f "${MT_PKG_DIR}/.cache/packages.tsv"
+  command rm -f "${MT_PKG_DIR}/.cache/modules.tsv"
   # Update the timestamp file to mark when we last invalidated the cache
-  mkdir -p "${MT_PKG_DIR}/.cache"
-  touch "${MT_PKG_DIR}/.cache/last_update"
+  command mkdir -p "${MT_PKG_DIR}/.cache"
+  command touch "${MT_PKG_DIR}/.cache/last_update"
 }
 
 # Initialize ln command with relative symlink support
@@ -500,14 +500,14 @@ _mt_init_ln_command() {
   
   # Check if standard ln supports -r (quickly, without delays)
   if ln -r -s /dev/null /tmp/mt_test_ln_$$ 2>/dev/null; then
-    rm -f /tmp/mt_test_ln_$$
+    command rm -f /tmp/mt_test_ln_$$
     export _MT_LN_COMMAND="ln"
     return 0
   fi
   
   # On macOS, check for GNU ln (gln)
   if command -v gln >/dev/null 2>&1 && gln -r -s /dev/null /tmp/mt_test_gln_$$ 2>/dev/null; then
-    rm -f /tmp/mt_test_gln_$$
+    command rm -f /tmp/mt_test_gln_$$
     export _MT_LN_COMMAND="gln"
     return 0
   fi
@@ -526,7 +526,7 @@ _mt_init_ln_command() {
     if brew install coreutils; then
       # Check again after installation
       if command -v gln >/dev/null 2>&1 && gln -r -s /dev/null /tmp/mt_test_gln_$$ 2>/dev/null; then
-        rm -f /tmp/mt_test_gln_$$
+        command rm -f /tmp/mt_test_gln_$$
         export _MT_LN_COMMAND="gln"
         _mt_info "GNU ln installed successfully"
         return 0

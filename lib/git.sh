@@ -190,14 +190,14 @@ _mt_git_clone() {
     # Run git clone and capture the result
     if git clone "${git_repo_url}" "${git_repo_path}" > "${tmp_output}" 2>&1; then
         _mt_info "Repository cloned successfully"
-        cat "${tmp_output}"
-        rm "${tmp_output}"
+        command cat "${tmp_output}"
+        command rm "${tmp_output}"
         return 0
     else
         # The clone failed, so output our error message first, then git's output
         _mt_error "Failed to clone repository"
-        cat "${tmp_output}" >&2
-        rm "${tmp_output}"
+        command cat "${tmp_output}" >&2
+        command rm "${tmp_output}"
         
         # IMPORTANT: Always return the error code
         return 1
@@ -242,7 +242,7 @@ _mt_clone_main() {
     local git_repo_path="$2"
     
     # Ensure the parent directory exists
-    mkdir -p "$(dirname "${git_repo_path}")" || { 
+    command mkdir -p "$(dirname "${git_repo_path}")" || { 
         _mt_error "Failed to create directory: $(dirname "${git_repo_path}")"
         return 1
     }

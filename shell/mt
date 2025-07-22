@@ -39,9 +39,9 @@ mt() {
   _mt_log DEBUG "MT_ROOT=${MT_ROOT}"
 
   # Ensure pkg dirs exist
-  mkdir -p "${MT_PKG_DIR}/bin"
+  command mkdir -p "${MT_PKG_DIR}/bin"
   # mkdir -p "${MT_PKG_DIR}/config" # Not used currently
-  mkdir -p "${MT_PKG_DIR}/shell"
+  command mkdir -p "${MT_PKG_DIR}/shell"
 
   # Parse command
   if [[ $# -eq 0 ]]; then
@@ -59,7 +59,7 @@ mt() {
           _mt_log DEBUG "Sourcing $file"
           source "$file"
         fi
-      done < <(find -L "${MT_PKG_DIR}/shell" -type f -not -name ".*" -print0 | sort -z)
+      done < <(command find -L "${MT_PKG_DIR}/shell" -type f -not -name ".*" -print0 | command sort -z)
       # Setup bash completion for aliases
       complete -F _complete_alias "${!BASH_ALIASES[@]}"
     fi
@@ -136,7 +136,7 @@ mt() {
 
       # If an argument is provided, filter by package name
       if [[ $# -eq 1 ]]; then
-        packages=$(echo "$packages" | grep -E "^$1\t")
+        packages=$(echo "$packages" | command grep -E "^$1\t")
       fi
 
       # Print header

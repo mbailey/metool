@@ -372,7 +372,7 @@ _mt_sync_shared_repo() {
     echo "[INFO] To: $git_repo_path" >&2
     
     # Ensure parent directory exists
-    mkdir -p "$(dirname "$git_repo_path")" || {
+    command mkdir -p "$(dirname "$git_repo_path")" || {
       _mt_error "Failed to create directory: $(dirname "$git_repo_path")"
       echo "error"
       return 1
@@ -406,7 +406,7 @@ _mt_sync_shared_repo() {
         # Fallback to simple check
         if command -v git >/dev/null 2>&1 && [[ -d "$git_repo_path/.git" ]]; then
           # Simple check - just see if we're behind remote
-          if git -C "$git_repo_path" fetch --dry-run 2>/dev/null | grep -q -- "->"; then
+          if git -C "$git_repo_path" fetch --dry-run 2>/dev/null | command grep -q -- "->"; then
             repo_status="behind"
           else
             repo_status="current"
@@ -612,10 +612,10 @@ _mt_sync_process_repos() {
       # Extract status and actual ref from output
       local actual_ref=""
       if [[ $result -eq 0 ]]; then
-        status=$(echo "$sync_output" | grep "^STATUS:" | cut -d: -f2)
-        actual_ref=$(echo "$sync_output" | grep "^ACTUAL_REF:" | cut -d: -f2)
+        status=$(echo "$sync_output" | command grep "^STATUS:" | cut -d: -f2)
+        actual_ref=$(echo "$sync_output" | command grep "^ACTUAL_REF:" | cut -d: -f2)
         # Show info messages (everything except STATUS and ACTUAL_REF lines)
-        echo "$sync_output" | grep -v "^STATUS:\|^ACTUAL_REF:"
+        echo "$sync_output" | command grep -v "^STATUS:\|^ACTUAL_REF:"
       else
         status="error"
         echo "$sync_output"
@@ -661,10 +661,10 @@ _mt_sync_process_repos() {
       # Extract status and actual ref from output
       local actual_ref=""
       if [[ $result -eq 0 ]]; then
-        status=$(echo "$sync_output" | grep "^STATUS:" | cut -d: -f2)
-        actual_ref=$(echo "$sync_output" | grep "^ACTUAL_REF:" | cut -d: -f2)
+        status=$(echo "$sync_output" | command grep "^STATUS:" | cut -d: -f2)
+        actual_ref=$(echo "$sync_output" | command grep "^ACTUAL_REF:" | cut -d: -f2)
         # Show info messages (everything except STATUS and ACTUAL_REF lines)
-        echo "$sync_output" | grep -v "^STATUS:\|^ACTUAL_REF:"
+        echo "$sync_output" | command grep -v "^STATUS:\|^ACTUAL_REF:"
       else
         status="error"
         echo "$sync_output"
