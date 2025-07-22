@@ -219,9 +219,14 @@ EOF
 @test "_mt_sync_parse_args should default to current directory repos.txt" {
   touch repos.txt
   run _mt_sync_parse_args
+  
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "REPOS_FILE=${WORK_DIR}/repos.txt" ]]
-  [[ "$output" =~ "WORK_DIR=${WORK_DIR}" ]]
+  # Check that output contains the repos file and work dir
+  # Use realpath to normalize paths for comparison
+  local expected_repos="$(command realpath "${WORK_DIR}/repos.txt")"
+  local expected_work="$(command realpath "${WORK_DIR}")"
+  [[ "$output" =~ "REPOS_FILE=${expected_repos}" ]]
+  [[ "$output" =~ "WORK_DIR=${expected_work}" ]]
 }
 
 @test "_mt_sync_parse_args should handle directory argument" {
@@ -229,8 +234,11 @@ EOF
   touch test-project/repos.txt
   run _mt_sync_parse_args test-project
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "REPOS_FILE=${WORK_DIR}/test-project/repos.txt" ]]
-  [[ "$output" =~ "WORK_DIR=${WORK_DIR}/test-project" ]]
+  # Use realpath to normalize paths for comparison
+  local expected_repos="$(command realpath "${WORK_DIR}/test-project/repos.txt")"
+  local expected_work="$(command realpath "${WORK_DIR}/test-project")"
+  [[ "$output" =~ "REPOS_FILE=${expected_repos}" ]]
+  [[ "$output" =~ "WORK_DIR=${expected_work}" ]]
 }
 
 @test "_mt_sync_parse_args should handle file argument" {
@@ -238,16 +246,22 @@ EOF
   touch test-project/deps.txt
   run _mt_sync_parse_args test-project/deps.txt
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "REPOS_FILE=${WORK_DIR}/test-project/deps.txt" ]]
-  [[ "$output" =~ "WORK_DIR=${WORK_DIR}/test-project" ]]
+  # Use realpath to normalize paths for comparison
+  local expected_repos="$(command realpath "${WORK_DIR}/test-project/deps.txt")"
+  local expected_work="$(command realpath "${WORK_DIR}/test-project")"
+  [[ "$output" =~ "REPOS_FILE=${expected_repos}" ]]
+  [[ "$output" =~ "WORK_DIR=${expected_work}" ]]
 }
 
 @test "_mt_sync_parse_args should handle --file flag" {
   touch custom.txt
   run _mt_sync_parse_args --file custom.txt
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "REPOS_FILE=${WORK_DIR}/custom.txt" ]]
-  [[ "$output" =~ "WORK_DIR=${WORK_DIR}" ]]
+  # Use realpath to normalize paths for comparison
+  local expected_repos="$(command realpath "${WORK_DIR}/custom.txt")"
+  local expected_work="$(command realpath "${WORK_DIR}")"
+  [[ "$output" =~ "REPOS_FILE=${expected_repos}" ]]
+  [[ "$output" =~ "WORK_DIR=${expected_work}" ]]
 }
 
 @test "_mt_sync_parse_args should handle --dry-run flag" {
@@ -268,7 +282,9 @@ EOF
   touch custom.txt
   run _mt_sync_parse_args --file custom.txt --dry-run --default-strategy local
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "REPOS_FILE=${WORK_DIR}/custom.txt" ]]
+  # Use realpath to normalize paths for comparison
+  local expected_repos="$(command realpath "${WORK_DIR}/custom.txt")"
+  [[ "$output" =~ "REPOS_FILE=${expected_repos}" ]]
   [[ "$output" =~ "DRY_RUN=true" ]]
   [[ "$output" =~ "DEFAULT_STRATEGY=local" ]]
 }

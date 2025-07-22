@@ -146,7 +146,7 @@ _mt_find_repos_file() {
   fi
   
   # Normalize search directory to absolute path
-  search_dir="$(realpath "$search_dir")"
+  search_dir="$(command realpath "$search_dir")"
   local current_dir="$search_dir"
   
   # Check if we're in a git repository
@@ -261,11 +261,11 @@ _mt_sync_parse_args() {
           
           # Check if it's a file
           if [[ -f "$arg" ]]; then
-            repos_file="$(realpath "$arg")"
+            repos_file="$(command realpath "$arg")"
             work_dir="$(dirname "$repos_file")"
           # Check if it's a directory
           elif [[ -d "$arg" ]]; then
-            work_dir="$(realpath "$arg")"
+            work_dir="$(command realpath "$arg")"
             # Use new discovery logic for directories
             if repos_file=$(_mt_find_repos_file "$work_dir"); then
               # File found, work_dir should be the directory containing the file
@@ -310,7 +310,7 @@ _mt_sync_parse_args() {
       work_dir="$(dirname "$repos_file")"
     else
       # Relative path
-      repos_file="$(realpath "$repos_file")"
+      repos_file="$(command realpath "$repos_file")"
       work_dir="$(dirname "$repos_file")"
     fi
   fi
@@ -488,8 +488,8 @@ _mt_sync_shared_repo() {
     
     # Normalize both paths to handle symlinks in MT_GIT_BASE_DIR
     local normalized_existing normalized_expected
-    normalized_existing="$(realpath "$existing_target" 2>/dev/null || echo "$existing_target")"
-    normalized_expected="$(realpath "$git_repo_path" 2>/dev/null || echo "$git_repo_path")"
+    normalized_existing="$(command realpath "$existing_target" 2>/dev/null || echo "$existing_target")"
+    normalized_expected="$(command realpath "$git_repo_path" 2>/dev/null || echo "$git_repo_path")"
     
     if [[ "$normalized_existing" == "$normalized_expected" ]]; then
       _mt_debug "Symlink already exists and is correct: $target_name -> $git_repo_path"

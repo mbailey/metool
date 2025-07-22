@@ -25,6 +25,7 @@ mt() {
   source "${MT_ROOT}/lib/path.sh"
   source "${MT_ROOT}/lib/stow.sh"
   source "${MT_ROOT}/lib/sync.sh"
+  source "${MT_ROOT}/lib/deps.sh"
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
@@ -60,8 +61,10 @@ mt() {
           source "$file"
         fi
       done < <(command find -L "${MT_PKG_DIR}/shell" -type f -not -name ".*" -print0 | command sort -z)
-      # Setup bash completion for aliases
-      complete -F _complete_alias "${!BASH_ALIASES[@]}"
+      # Setup bash completion for aliases (only if bash-completion is loaded)
+      if type -t _complete_alias &>/dev/null; then
+        complete -F _complete_alias "${!BASH_ALIASES[@]}"
+      fi
     fi
 
   else
@@ -83,6 +86,7 @@ mt() {
       echo "  sync [DIR|FILE]        Sync repositories from repos.txt manifest file"
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
+      echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
       echo "  --help                 Show this help message and exit"
       echo
       ;;
@@ -108,6 +112,20 @@ mt() {
       shift
       # If no arguments provided, default to MT_ROOT
       if [[ $# -eq 0 ]]; then
+        # Installing metool itself - check dependencies first
+        echo "Checking dependencies before installing metool..."
+        echo ""
+        if ! _mt_check_deps; then
+          echo ""
+          echo "❌ Cannot install metool without required dependencies."
+          if command -v brew &>/dev/null; then
+            echo ""
+            echo "💡 Run 'mt deps --install' to install missing dependencies with Homebrew"
+          fi
+          return 1
+        fi
+        echo ""
+        echo "Installing metool..."
         _mt_stow "$MT_ROOT"
       else
         _mt_stow "$@"
@@ -155,6 +173,10 @@ mt() {
     sync)
       shift
       _mt_sync "$@"
+      ;;
+    deps)
+      shift
+      _mt_deps "$@"
       ;;
     *)
       _mt_error "Unknown command: $1"

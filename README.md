@@ -44,6 +44,26 @@ Use `--help` to for command usage.
 MeTool brings structure to shell creativity while keeping everything accessible
 and hackable.
 
+## Prerequisites
+
+Metool requires the following tools:
+
+- **GNU coreutils** (for `realpath`)
+  - macOS: `brew install coreutils`
+  - Ubuntu/Debian: Usually pre-installed
+- **GNU Stow** (for `mt install`)
+  - macOS: `brew install stow`
+  - Ubuntu/Debian: `apt install stow`
+- **bash-completion** (for alias completion support)
+  - macOS: `brew install bash-completion@2`
+  - Ubuntu/Debian: `apt install bash-completion`
+- **GNU ln** (optional, for relative symlinks)
+  - macOS: Included with coreutils
+  - Ubuntu/Debian: Pre-installed
+- **bats-core** (optional, for running tests)
+  - macOS: `brew install bats-core`
+  - Ubuntu/Debian: `npm install -g bats` or `apt install bats`
+
 ## Quickstart
 
 Metool itself is a Metool Package you install as you would any other Metool Package:

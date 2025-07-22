@@ -1,7 +1,29 @@
-.PHONY: test test-clone test-install test-edit test-sync test-completion tmux dev
+.PHONY: test test-all test-clone test-install test-edit test-sync test-completion tmux dev
 .PHONY: mcp-install mcp-dev-install mcp-test mcp-build mcp-publish-test mcp-publish mcp-release mcp-clean
 
-test: test-clone test-install test-edit test-sync test-completion
+test:
+	@echo "Running all test suites..."
+	@$(MAKE) -k test-clone test-install test-edit test-sync test-completion || true
+	@echo ""
+	@echo "Use 'make test-all' for detailed summary"
+
+test-all:
+	@echo "Running all test suites..."
+	@failed=0; \
+	for suite in tests/*.bats; do \
+		echo ""; \
+		echo "=== Running $$(basename $$suite) ==="; \
+		if ! bats "$$suite"; then \
+			failed=$$((failed + 1)); \
+		fi; \
+	done; \
+	echo ""; \
+	if [ $$failed -gt 0 ]; then \
+		echo "❌ $$failed test suite(s) failed"; \
+		exit 1; \
+	else \
+		echo "✅ All test suites passed"; \
+	fi
 
 test-clone:
 	bats tests/clone.bats

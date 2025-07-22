@@ -43,7 +43,26 @@ setup() {
     echo "WARNING: $*"
   }
   
-  # Mock _mt_create_symlink for testing
+  # Mock _mt_create_relative_symlink for testing
+  _mt_create_relative_symlink() {
+    local target_path="$1"
+    local link_name="$2"
+    # Use same approach as real implementation for portability
+    if command ln --help 2>&1 | grep -q -- --relative; then
+      ln -sr "${target_path}" "${link_name}"
+    else
+      # Fallback for systems without GNU ln
+      ln -s "${target_path}" "${link_name}"
+    fi
+  }
+  
+  # Mock _mt_init_ln_command
+  _mt_init_ln_command() {
+    _MT_LN_COMMAND="ln"
+    return 0
+  }
+  
+  # Mock _mt_create_symlink - this is called by _mt_clone
   _mt_create_symlink() {
     local current_dir="$1"
     local target_path="$2"
@@ -57,17 +76,21 @@ setup() {
       local existing_target
       existing_target="$(readlink -f "$repo_name")"
       
-      if [[ "$existing_target" == "$target_path" ]]; then
-        echo "INFO: Symlink exists and points to the correct location: ${repo_name} -> ${target_path}"
+      # Normalize both paths to handle macOS /private symlinks
+      local normalized_existing=$(command realpath "$existing_target" 2>/dev/null || echo "$existing_target")
+      local normalized_target=$(command realpath "$target_path" 2>/dev/null || echo "$target_path")
+      
+      if [[ "$normalized_existing" == "$normalized_target" ]]; then
+        _mt_info "Symlink exists and points to the correct location: ${repo_name} -> ${target_path}"
       else
-        echo "WARNING: Symlink exists but points to a different location: ${repo_name} -> ${existing_target}"
-        echo "WARNING: Expected target: ${target_path}"
+        _mt_warning "Symlink exists but points to a different location: ${repo_name} -> ${existing_target}"
+        _mt_warning "Expected target: ${target_path}"
       fi
     elif [[ -e "$repo_name" ]]; then
-      echo "WARNING: Cannot create symlink: ${repo_name} already exists and is not a symlink"
+      _mt_warning "Cannot create symlink: ${repo_name} already exists and is not a symlink"
     else
-      echo "INFO: Creating symlink: ${repo_name} -> ${target_path}"
-      ln -sr "${target_path}" "${repo_name}"
+      _mt_info "Creating symlink: ${repo_name} -> ${target_path}"
+      _mt_create_relative_symlink "${target_path}" "${repo_name}"
     fi
   }
   
@@ -230,8 +253,9 @@ EOL
   
   # Verify the symlink exists and points to the right place
   [ -L "${WORK_DIR}/${TEST_REPO_NAME}" ]
-  local actual_target=$(readlink -f "${WORK_DIR}/${TEST_REPO_NAME}")
-  [ "${actual_target}" = "${target_dir}" ]
+  local actual_target=$(cd "${WORK_DIR}" && readlink -f "${TEST_REPO_NAME}")
+  local expected_target=$(cd "${MT_GIT_BASE_DIR}" && realpath "github.com/test-user/${TEST_REPO_NAME}")
+  [ "${actual_target}" = "${expected_target}" ]
 }
 
 @test "mt clone detects existing symlink pointing to correct location" {
@@ -251,11 +275,12 @@ EOL
 EOL
   
   # Create a symlink to the target
-  ln -sr "${target_dir}" "${TEST_REPO_NAME}"
+  _mt_create_relative_symlink "${target_dir}" "${TEST_REPO_NAME}"
   
   run _mt_clone "${TEST_REPO_NAME}"
   
   [ "$status" -eq 0 ]
+  echo "DEBUG OUTPUT: $output" >&2
   [[ "$output" =~ "Repository already exists" ]]
   [[ "$output" =~ "Symlink exists and points to the correct location" ]]
 }
@@ -279,7 +304,7 @@ EOL
   
   # Create a different directory and link to it
   mkdir -p "${different_dir}"
-  ln -sr "${different_dir}" "${TEST_REPO_NAME}"
+  _mt_create_relative_symlink "${different_dir}" "${TEST_REPO_NAME}"
   
   run _mt_clone "${TEST_REPO_NAME}"
   
