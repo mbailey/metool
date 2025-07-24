@@ -1,67 +1,15 @@
 _mt_edit() {
   if [[ $# != 1 ]]; then
     echo "Usage: mt edit <function, executable or file>" >&2
-    echo "       Use 'MODULE/PACKAGE' to create a new package in an existing module" >&2
     return 1
   fi
 
   editor="${EDITOR:-vim}"
 
-  # Check if it's a module/package path (contains a slash)
-  if [[ "$1" == */* ]]; then
-    local module_name="${1%%/*}"
-    local package_name="${1#*/}"
-
-    # Check if the module exists
-    local module_path=""
-    while IFS=$'\t' read -r mod_name mod_path; do
-      if [[ "$mod_name" == "$module_name" ]]; then
-        module_path="$mod_path"
-        break
-      fi
-    done < <(_mt_get_modules)
-
-    if [[ -z "$module_path" ]]; then
-      _mt_error "Module '$module_name' not found"
-      return 1
-    fi
-
-    # Construct the package path
-    local package_path="${module_path}/${package_name}"
-
-    # Check if the package directory already exists
-    if [[ -d "$package_path" ]]; then
-      # Package exists, just edit its README
-      local readme_path="${package_path}/README.md"
-      if [[ ! -f "$readme_path" ]]; then
-        _mt_info "Creating README.md for package '$package_name'"
-        echo "# ${package_name}" >"${readme_path}"
-      fi
-      _mt_info "Editing package README: $readme_path"
-      ${editor} "$readme_path"
-      return 0
-    else
-      # Package doesn't exist, ask for confirmation to create it
-      # Source prompt functions if needed
-      if ! type -t _mt_confirm >/dev/null; then
-        source "$(dirname "${BASH_SOURCE[0]}")/prompt.sh"
-      fi
-
-      _mt_confirm "Package '$package_name' doesn't exist in module '$module_name'.\nWould you like to create it at: $package_path?"
-      if [[ $? -eq 0 ]]; then
-        _mt_info "Creating package directory: $package_path"
-        command mkdir -p "$package_path"
-        local readme_path="${package_path}/README.md"
-        _mt_info "Creating README.md for package '$package_name'"
-        echo "# ${package_name}" >"${readme_path}"
-        _mt_info "Editing package README: $readme_path"
-        ${editor} "$readme_path"
-        return 0
-      else
-        _mt_info "Package creation cancelled"
-        return 1
-      fi
-    fi
+  # Check if it's a file first (including paths with slashes)
+  if is_file "${1}"; then
+    ${editor} "${1}"
+    return $?
   fi
 
   # Check if it's a function
@@ -76,13 +24,7 @@ _mt_edit() {
     return $?
   fi
 
-  # Check if it's a file
-  if is_file "${1}"; then
-    ${editor} "${1}"
-    return $?
-  fi
-
-  _mt_error "Target ${1} not found as package, function, executable, or file"
+  _mt_error "Target ${1} not found as function, executable, or file"
   return 1
 }
 

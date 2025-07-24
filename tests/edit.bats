@@ -132,57 +132,30 @@ teardown() {
   [[ "$output" =~ "Usage: mt edit" ]]
 }
 
-@test "mt edit can edit a package README" {
-  skip "Package editing with package/NAME syntax has been removed"
+@test "mt edit no longer supports package editing" {
+  # Test that package/name syntax now treats it as a file path
   run _mt_edit "package/${TEST_PKG_NAME}"
   
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "Editing package README" ]]
-  [[ "$output" =~ "${TEST_PKG_PATH}/README.md" ]]
+  # Should fail since this file doesn't exist
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "not found" ]]
 }
 
-@test "mt edit can edit a package by name" {
-  skip "Package editing by name only has been removed"
-  run _mt_edit "${TEST_PKG_NAME}"
-  
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "Editing package README" ]]
-  [[ "$output" =~ "${TEST_PKG_PATH}/README.md" ]]
-}
 
-@test "mt edit creates README.md if it doesn't exist" {
-  skip "Package editing by name only has been removed"
-  # Remove existing README
-  rm "${TEST_PKG_PATH}/README.md"
+@test "mt edit now treats paths with slashes as files" {
+  # Test that module/package syntax is treated as a file path
+  local test_file="${TMPDIR}/some/nested/file.txt"
+  mkdir -p "$(dirname "$test_file")"
+  echo "test content" > "$test_file"
   
-  # We need to modify the _mt_edit_package function to make the test work
-  _mt_edit_package() {
-    local package_name="$1"
-    local package_path="${TEST_PKG_PATH}"
-    
-    # Since we removed README.md, report that we're creating it
-    echo "Creating README.md for package '${package_name}'"
-    echo "# ${package_name}" > "${package_path}/README.md"
-    echo "Editing package README: ${package_path}/README.md"
-    ${EDITOR} "${package_path}/README.md"
-    return 0
-  }
+  run _mt_edit "some/nested/file.txt"
   
-  run _mt_edit "${TEST_PKG_NAME}"
+  # Should fail because it's looking for absolute path
+  [ "$status" -eq 1 ]
   
+  # But with full path it should work
+  run _mt_edit "$test_file"
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "Creating README.md for package" ]]
-  [[ "$output" =~ "Editing package README" ]]
-}
-
-@test "mt edit can edit a module/package path" {
-  # The _mt_edit function outputs info messages to stderr and the editor output to stdout
-  # Since we're using echo as the EDITOR, we'll get the filename in stdout
-  run _mt_edit "${TEST_MODULE_NAME}/${TEST_PKG_NAME}"
-  
-  [ "$status" -eq 0 ]
-  # The output will be the README path since EDITOR=echo
-  [[ "$output" =~ "${TEST_PKG_PATH}/README.md" ]]
 }
 
 @test "mt edit can edit a function" {
@@ -261,11 +234,12 @@ teardown() {
 #   [[ "$output" =~ "Package creation cancelled" ]]
 # }
 
-@test "mt edit fails for non-existent module" {
+@test "mt edit treats slash paths as files" {
   run _mt_edit "non-existent-module/package"
   
+  # Should fail as file not found, not module not found
   [ "$status" -eq 1 ]
-  [[ "$output" =~ "Module 'non-existent-module' not found" ]]
+  [[ "$output" =~ "not found as function, executable, or file" ]]
 }
 
 @test "mt edit_function displays error if function not found" {

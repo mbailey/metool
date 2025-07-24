@@ -4,15 +4,22 @@ _mt_cd() {
     return 1
   fi
 
-  funcinfo=($(declare -F "${1}"))
-  if ((${#funcinfo[@]} > 0)); then
-    source_file=${funcinfo[2]}
-    if [[ -f $source_file ]]; then
+  # Enable extdebug to get function source info
+  shopt -s extdebug
+
+  # Try function first - use read to handle spaces in paths
+  local func_output source_file
+  func_output=$(declare -F "${1}" 2>/dev/null || true)
+  if [[ -n "$func_output" ]]; then
+    # Read the three fields: function_name line_number source_file
+    read -r _ _ source_file <<< "$func_output"
+    if [[ -n "$source_file" ]] && [[ -f "$source_file" ]]; then
       cd "$(dirname "$source_file")"
       return
     fi
   fi
 
+  # Try executable
   exec_path=$(which "${1}" 2>/dev/null)
   if [[ -n $exec_path ]]; then
     cd "$(dirname "$exec_path")"
@@ -30,9 +37,13 @@ _mt_path_to() {
   fi
 
   shopt -s extdebug
-  funcinfo=($(declare -F "${1}"))
-  if ((${#funcinfo[@]} > 0)); then
-    echo "${funcinfo[2]}"
+  # Try function first - use read to handle spaces in paths
+  local func_output source_file
+  func_output=$(declare -F "${1}" 2>/dev/null || true)
+  if [[ -n "$func_output" ]]; then
+    # Read the three fields: function_name line_number source_file
+    read -r _ _ source_file <<< "$func_output"
+    echo "$source_file"
   else
     exec_path=$(which "${1}" 2>/dev/null)
     if [[ -n $exec_path ]]; then

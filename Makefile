@@ -1,11 +1,10 @@
-.PHONY: test test-all test-clone test-install test-edit test-sync test-completion tmux dev
+.PHONY: test test-all test-cd test-clone test-install test-edit test-path test-sync test-completion test-url-expansion tmux dev
 .PHONY: mcp-install mcp-dev-install mcp-test mcp-build mcp-publish-test mcp-publish mcp-release mcp-clean
 
+# Run all bats tests found in the tests directory
 test:
-	@echo "Running all test suites..."
-	@$(MAKE) -k test-clone test-install test-edit test-sync test-completion || true
-	@echo ""
-	@echo "Use 'make test-all' for detailed summary"
+	@echo "Running all tests in tests/*.bats..."
+	@bats tests/*.bats
 
 test-all:
 	@echo "Running all test suites..."
@@ -25,6 +24,10 @@ test-all:
 		echo "✅ All test suites passed"; \
 	fi
 
+# Individual test targets for running specific tests
+test-cd:
+	bats tests/cd.bats
+
 test-clone:
 	bats tests/clone.bats
 
@@ -40,11 +43,17 @@ test-edit-remaining:
 test-edit-known-good:
 	MT_LOG_LEVEL=ERROR BATS_TEST_TIMEOUT=30 bats tests/edit.bats --filter "mt edit shows usage when no arguments provided|mt edit can edit a package README|mt edit can edit a package by name|mt edit creates README.md if it doesn't exist|mt edit can edit a module/package path|mt edit can edit a function|mt edit can edit an executable|mt edit can edit a file|mt edit errors on non-existent target"
 
+test-path:
+	bats tests/path.bats
+
 test-sync:
-	bats tests/sync.bats
+	bats tests/sync*.bats
 
 test-completion:
 	bats tests/completion.bats
+
+test-url-expansion:
+	bats tests/url-expansion.bats
 
 # Development targets
 dev:
