@@ -89,7 +89,7 @@ Metool itself is a Metool Package you install as you would any other Metool Pack
 3. Install additional modules:
 
    ```shell
-   git clone git@github.com:mbailey/metool-packages.git
+   mt clone https://github.com/mbailey/metool-packages.git
    mt install metool-packages/*
    ```
 
