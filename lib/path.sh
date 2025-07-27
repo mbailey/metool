@@ -4,6 +4,12 @@ _mt_cd() {
     return 1
   fi
 
+  # Check if realpath is available
+  if ! command -v realpath &>/dev/null; then
+    echo "Error: 'realpath' is required for mt cd. Please install 'coreutils'." >&2
+    return 1
+  fi
+
   # Enable extdebug to get function source info
   shopt -s extdebug
 
@@ -14,7 +20,8 @@ _mt_cd() {
     # Read the three fields: function_name line_number source_file
     read -r _ _ source_file <<< "$func_output"
     if [[ -n "$source_file" ]] && [[ -f "$source_file" ]]; then
-      cd "$(dirname "$source_file")"
+      # Resolve symlinks before changing directory
+      cd "$(dirname "$(realpath "$source_file")")"
       return
     fi
   fi
@@ -22,7 +29,8 @@ _mt_cd() {
   # Try executable
   exec_path=$(which "${1}" 2>/dev/null)
   if [[ -n $exec_path ]]; then
-    cd "$(dirname "$exec_path")"
+    # Resolve symlinks before changing directory
+    cd "$(dirname "$(realpath "$exec_path")")"
     return
   fi
 

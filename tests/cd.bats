@@ -4,6 +4,9 @@
 load test_helper
 
 setup() {
+  # Check for required commands
+  require_command realpath
+  
   # Create a temporary directory for testing
   export TMPDIR=$(mktemp -d)
   export MT_ROOT="${BATS_TEST_DIRNAME}/.."
@@ -72,8 +75,8 @@ teardown() {
   # cd to test_function
   _mt_cd test_function
   
-  # Check we're in the directory containing the functions file
-  [ "$PWD" = "$TEST_DIR2" ]
+  # Check we're in the directory containing the functions file (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_DIR2")" ]
 }
 
 @test "_mt_cd to executable changes to executable's directory" {
@@ -83,8 +86,8 @@ teardown() {
   # cd to test-executable
   _mt_cd test-executable
   
-  # Check we're in the directory containing the executable
-  [ "$PWD" = "$TEST_DIR1" ]
+  # Check we're in the directory containing the executable (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_DIR1")" ]
 }
 
 @test "_mt_cd with non-existent target fails with error" {
@@ -143,8 +146,8 @@ EOL
   # cd to test_function (should prefer the function)
   _mt_cd test_function
   
-  # Check we're in the function's directory, not the executable's
-  [ "$PWD" = "$TEST_DIR2" ]
+  # Check we're in the function's directory, not the executable's (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_DIR2")" ]
 }
 
 @test "_mt_cd works with executable not in PATH" {
@@ -179,11 +182,11 @@ EOL
   # cd to abs-test
   _mt_cd abs-test
   
-  # Check we're in the absolute bin directory
-  [ "$PWD" = "$ABSOLUTE_BIN" ]
+  # Check we're in the absolute bin directory (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "$ABSOLUTE_BIN")" ]
 }
 
-@test "_mt_cd works with symlinked executable" {
+@test "_mt_cd resolves symlinks for executables" {
   # Create a symlink to test-executable
   ln -s "${TEST_DIR1}/test-executable" "${TEST_DIR2}/linked-executable"
   export PATH="${TEST_DIR2}:${PATH}"
@@ -194,8 +197,70 @@ EOL
   # cd to linked-executable
   _mt_cd linked-executable
   
-  # Check we're in the directory containing the symlink
-  [ "$PWD" = "$TEST_DIR2" ]
+  # Check we're in the directory containing the real executable (symlink resolved)
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_DIR1")" ]
+}
+
+@test "_mt_cd resolves symlinks for functions in symlinked directories" {
+  # Create a symlinked directory structure
+  REAL_DIR="${TMPDIR}/real-functions-dir"
+  SYMLINK_DIR="${TMPDIR}/symlink-functions-dir"
+  mkdir -p "${REAL_DIR}"
+  ln -s "${REAL_DIR}" "${SYMLINK_DIR}"
+  
+  # Create functions file in real directory
+  cat > "${REAL_DIR}/symlinked-functions.sh" << 'EOL'
+#!/bin/bash
+
+symlinked_function() {
+  echo "Function in symlinked directory"
+}
+EOL
+  
+  # Source it via the symlink path
+  source "${SYMLINK_DIR}/symlinked-functions.sh"
+  
+  # Start in work directory
+  cd "${WORK_DIR}"
+  
+  # cd to symlinked_function
+  _mt_cd symlinked_function
+  
+  # Check we're in the real directory (symlink resolved)
+  [ "$(realpath "$PWD")" = "$(realpath "$REAL_DIR")" ]
+}
+
+@test "_mt_cd resolves nested symlinks" {
+  # Create nested symlink structure
+  REAL_BIN="${TMPDIR}/real-bin"
+  LINK1="${TMPDIR}/link1"
+  LINK2="${TMPDIR}/link2"
+  
+  mkdir -p "${REAL_BIN}"
+  
+  # Create real executable
+  cat > "${REAL_BIN}/nested-test" << 'EOL'
+#!/bin/bash
+echo "Nested symlink test"
+EOL
+  chmod +x "${REAL_BIN}/nested-test"
+  
+  # Create nested symlinks: link2 -> link1/nested-test -> real-bin/nested-test
+  mkdir -p "${LINK1}"
+  ln -s "${REAL_BIN}/nested-test" "${LINK1}/nested-test"
+  ln -s "${LINK1}/nested-test" "${LINK2}-nested-test"
+  
+  # Add directory containing final symlink to PATH
+  export PATH="${TMPDIR}:${PATH}"
+  
+  # Start in work directory
+  cd "${WORK_DIR}"
+  
+  # cd to the double-symlinked executable
+  _mt_cd link2-nested-test
+  
+  # Check we're in the real directory (all symlinks resolved)
+  [ "$(realpath "$PWD")" = "$(realpath "$REAL_BIN")" ]
 }
 
 @test "_mt_cd works with function defined in sourced file" {
@@ -218,8 +283,8 @@ EOL
   # cd to remote_function
   _mt_cd remote_function
   
-  # Check we're in the directory containing the source file
-  [ "$PWD" = "$TMPDIR" ]
+  # Check we're in the directory containing the source file (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "$TMPDIR")" ]
 }
 
 @test "_mt_cd handles function with spaces in directory path" {
@@ -246,8 +311,8 @@ EOL
   # cd to space_function
   _mt_cd space_function
   
-  # Check we're in the directory with spaces
-  [ "$PWD" = "${SPACE_DIR}" ]
+  # Check we're in the directory with spaces (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "${SPACE_DIR}")" ]
 }
 
 @test "_mt_cd with bash builtin (no external command) fails" {
@@ -290,6 +355,6 @@ EOF
   # cd to mt function
   _mt_cd mt
   
-  # Check we're in the shell directory
-  [ "$PWD" = "${MT_ROOT}/shell" ]
+  # Check we're in the shell directory (resolve symlinks for comparison)
+  [ "$(realpath "$PWD")" = "$(realpath "${MT_ROOT}/shell")" ]
 }
