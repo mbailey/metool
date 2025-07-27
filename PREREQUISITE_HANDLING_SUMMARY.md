@@ -9,7 +9,7 @@ Metool currently performs the following prerequisite checks:
   ```bash
   command -v realpath &>/dev/null || {
     echo "Error: 'realpath' is required but not found. Please install 'coreutils'..." >&2
-    exit 1
+    return 1
   }
   ```
 
@@ -39,11 +39,11 @@ Metool currently performs the following prerequisite checks:
 
 ## New Prerequisite Command
 
-Added `mt prereqs` command that provides comprehensive checking:
+Added `mt deps` command that provides comprehensive checking:
 
 ```bash
-$ mt prereqs
-Checking metool prerequisites...
+$ mt deps
+Checking metool dependencies...
 
   ✅ realpath: Found at /opt/homebrew/opt/coreutils/libexec/gnubin/realpath
   ✅ stow: Found at /opt/homebrew/bin/stow
@@ -70,7 +70,7 @@ Metool does NOT automatically install prerequisites because:
 Instead, metool:
 - Provides clear error messages when prerequisites are missing
 - Includes platform-specific installation commands in error messages
-- Offers the `mt prereqs` command for comprehensive checking
+- Offers the `mt deps` command for comprehensive checking
 - Documents prerequisites in the README
 
 ## Summary
