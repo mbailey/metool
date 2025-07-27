@@ -39,7 +39,7 @@ _mt_completions() {
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   # Get all mt commands from libexec
-  local mt_commands="cd clone edit install modules packages components sync reload update help"
+  local mt_commands="cd clone edit install modules packages components sync reload update deps help"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -72,6 +72,10 @@ _mt_completions() {
   elif [[ ${prev} == "components" ]]; then
     # Complete with package names (to filter components by package)
     _mt_complete_packages
+  elif [[ ${prev} == "deps" ]]; then
+    # Complete with deps flags
+    local deps_flags="--install --help"
+    COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
   elif [[ ${prev} == "sync" ]]; then
     # Complete with directories and repos.txt files, plus sync flags
     local sync_flags="--file --dry-run --default-strategy --protocol --verbose --force --help"
