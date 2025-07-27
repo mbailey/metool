@@ -25,6 +25,7 @@ projects.
 - `clone` - Clone a git repository to a canonical location (or show status if already cloned)
 - `components` - List all package components (bin, shell, config, etc.)
 - `disable` - Disable systemd service(s) while preserving service files
+- `deps` - Check metool dependencies (--install to auto-install on macOS)
 - `edit` - Edit function, executable or file
 - `enable` - Enable systemd service(s) from a package
 - `install` - Symlink package directories: bin, config, shell
@@ -34,7 +35,7 @@ projects.
 - `sync` - Sync repositories from repos.txt manifest file
 - `update` - Update metool from git
 
-Use `--help` to for command usage.
+Use `--help` for command usage.
 
 ## Real-World Value
 
@@ -56,7 +57,7 @@ Metool requires the following tools:
 - **GNU Stow** (for `mt install`)
   - macOS: `brew install stow`
   - Ubuntu/Debian: `apt install stow`
-- **bash-completion** (for alias completion support)
+- **bash-completion** (optional, for alias completion support)
   - macOS: `brew install bash-completion@2`
   - Ubuntu/Debian: `apt install bash-completion`
 - **GNU ln** (optional, for relative symlinks)
@@ -65,6 +66,20 @@ Metool requires the following tools:
 - **bats-core** (optional, for running tests)
   - macOS: `brew install bats-core`
   - Ubuntu/Debian: `npm install -g bats` or `apt install bats`
+
+### Checking Dependencies
+
+Use `mt deps` to check if all dependencies are installed:
+
+```shell
+# Check dependencies
+mt deps
+
+# On macOS with Homebrew, offer to install missing dependencies
+mt deps --install
+```
+
+Note: `mt install` automatically checks for required dependencies before installing metool.
 
 ## Quickstart
 
