@@ -10,7 +10,7 @@ mt() {
   # Get path to script and root of project
   command -v realpath &>/dev/null || {
     echo "Error: 'realpath' is required but not found. Please install 'coreutils' (e.g. 'brew install coreutils' on macOS)." >&2
-    exit 1
+    return 1
   }
   SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
   SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"

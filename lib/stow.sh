@@ -3,7 +3,7 @@ _mt_stow() {
   command -v stow &>/dev/null || {
     echo "Error: 'stow' command is required but not found." >&2
     echo "Please install GNU Stow (e.g. 'apt install stow' or 'brew install stow')" >&2
-    exit 1
+    return 1
   }
 
   # Use MT_PKG_DIR from environment or set default
@@ -11,7 +11,7 @@ _mt_stow() {
 
   if [[ $# -lt 1 ]]; then
     echo "Usage: mt stow [STOW_OPTIONS] DIRECTORY..." >&2
-    exit 1
+    return 1
   fi
 
   # Get stow options and package paths
