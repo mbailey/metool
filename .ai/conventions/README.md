@@ -2,6 +2,8 @@
 
 This guide helps AI assistants find and follow project conventions before making changes.
 
+> **Note**: See [meta.md](./meta.md) for conventions about organizing the `.ai/` directory itself.
+
 ## When to Check for Conventions
 
 Always check before:
