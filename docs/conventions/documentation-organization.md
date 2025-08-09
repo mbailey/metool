@@ -1,19 +1,6 @@
-# Conventions for .ai/ Directory
+# Documentation Organization
 
-This document explains how to organize and maintain the `.ai/` directory itself.
-
-## Directory Structure
-
-```
-.ai/
-├── conventions/          # How to work with this project
-│   ├── README.md        # Main entry point for conventions
-│   ├── meta.md          # This file - conventions for .ai/ itself
-│   └── [topic].md       # Future: Specific convention topics
-├── resources/           # Links to external documentation
-│   └── README.md        # Curated external links
-└── [future]/            # Other AI-related content as needed
-```
+Guidelines for organizing and maintaining documentation files in the project.
 
 ## File Naming Conventions
 
@@ -72,7 +59,6 @@ Brief description of what this document covers.
 ```
 conventions/
 ├── README.md           # Overview and common patterns
-├── meta.md            # This file
 ├── testing/           # Testing-related conventions
 │   ├── README.md      # Testing overview
 │   ├── bats.md        # BATS-specific patterns

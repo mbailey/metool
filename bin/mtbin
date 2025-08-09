@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#
+# mtbin - Binary wrapper for metool commands
+# Allows scripts to call mt commands without sourcing
+
+# Source metool
+if [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
+    source "$HOME/.metool/shell/metool/mt"
+else
+    echo "Error: metool not found at ~/.metool/shell/metool/mt" >&2
+    exit 1
+fi
+
+# Pass all arguments to mt
+mt "$@"

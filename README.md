@@ -132,3 +132,22 @@ When you run `mt install ~/public/neovim`, metool will:
 3. Create symlinks from shell/ to ~/.metool/shell/
 
 A metool module can contain multiple packages, and you can selectively install packages from different modules.
+
+## Using Metool from Scripts
+
+Since `mt` is implemented as a shell function (to enable environment modifications), it cannot be called directly from scripts. For script usage, metool provides the `mtbin` wrapper:
+
+```bash
+#!/bin/bash
+# Example: Installing packages from a script
+
+# Use mtbin instead of mt for script usage
+mtbin install dev/git-tools
+mtbin install personal/shell-utils
+
+# All mt commands work through mtbin
+mtbin list
+mtbin sync dev
+```
+
+The `mtbin` script is installed in metool's `bin/` directory and sources the metool function before executing commands.

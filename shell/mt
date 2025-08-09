@@ -3,7 +3,7 @@
 
 mt() {
   # Convert DEBUG=1 to MT_LOG_LEVEL=DEBUG
-  if [[ -n "${DEBUG}" ]]; then
+  if [[ -n "${DEBUG:-}" ]]; then
     export MT_LOG_LEVEL=DEBUG
   fi
 
