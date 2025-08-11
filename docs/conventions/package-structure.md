@@ -154,6 +154,21 @@ key = value
 - [Other Package](../other-package/README.md) - Related functionality
 ```
 
+## Service Monitoring Conventions
+
+For packages that install systemd services, provide monitoring commands:
+
+```bash
+# In shell/aliases
+alias package-logs='journalctl --user -u package-service -f'
+alias package-status='systemctl --user status package-service'
+alias package-start='systemctl --user start package-service'
+alias package-stop='systemctl --user stop package-service'
+alias package-restart='systemctl --user restart package-service'
+```
+
+This pattern provides consistent service management across all packages.
+
 ## Naming Conventions
 
 ### Package Names
