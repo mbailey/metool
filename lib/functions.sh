@@ -550,3 +550,165 @@ _mt_create_relative_symlink() {
   # Create relative symlink
   "${_MT_LN_COMMAND}" -r -s "$target" "$link_name"
 }
+
+# Clean up dangling symlinks in ~/.metool
+_mt_clean() {
+  local symlinks_dir="${MT_PKG_DIR}"
+  
+  # Check if symlinks command is available
+  if ! command -v symlinks >/dev/null 2>&1; then
+    _mt_error "The 'symlinks' command is required but not found."
+    _mt_info "Install it with your package manager, e.g.:"
+    _mt_info "  Debian/Ubuntu: apt install symlinks"
+    _mt_info "  RHEL/Fedora: dnf install symlinks"
+    _mt_info "  macOS: brew install symlinks"
+    return 1
+  fi
+  
+  _mt_info "Scanning for dangling symlinks in ${symlinks_dir//$HOME/\~}..."
+  
+  # Get list of dangling symlinks with full info (path -> target)
+  local dangling_symlinks_full
+  dangling_symlinks_full=$(symlinks -r "${symlinks_dir}" 2>/dev/null | command grep "^dangling:" | command sed 's/^dangling: //')
+  
+  # Get just the paths for deletion
+  local dangling_symlinks
+  dangling_symlinks=$(echo "$dangling_symlinks_full" | command sed 's/ ->.*//')
+  
+  # Check if we found any dangling symlinks
+  if [[ -z "$dangling_symlinks" ]]; then
+    _mt_info "No dangling symlinks found in ${symlinks_dir//$HOME/\~}"
+    return 0
+  fi
+  
+  # Count the number of dangling symlinks
+  local count=$(echo "$dangling_symlinks" | command wc -l)
+  
+  _mt_info "Found ${count} dangling symlink(s):"
+  echo
+  
+  # Display all dangling symlinks with numbers
+  local i=1
+  local -a symlinks_array=()
+  local -a symlinks_full_array=()
+  while IFS= read -r symlink_full && IFS= read -r symlink <&3; do
+    # Replace $HOME with ~ for privacy and readability
+    local display_symlink_full="${symlink_full//$HOME/\~}"
+    # Color the symlink path and arrow
+    local symlink_path="${display_symlink_full%% ->*}"
+    local arrow_and_target="${display_symlink_full#* }"
+    if [[ -n ${NO_COLOR:-} ]] || [[ ! -t 1 ]]; then
+      printf "%2d. %s\n" "$i" "$display_symlink_full"
+    else
+      printf "%2d. ${MT_COLOR_CYAN}%s${MT_COLOR_RESET} ${MT_COLOR_DIM}%s${MT_COLOR_RESET}\n" "$i" "$symlink_path" "$arrow_and_target"
+    fi
+    symlinks_array+=("$symlink")
+    symlinks_full_array+=("$symlink_full")
+    ((i++))
+  done <<< "$dangling_symlinks_full" 3<<< "$dangling_symlinks"
+  
+  echo
+  
+  # Source prompt functions if needed
+  if ! type -t _mt_confirm_multiple >/dev/null; then
+    source "${MT_ROOT}/lib/prompt.sh"
+  fi
+  
+  # Ask what to do with all symlinks first
+  _mt_confirm_multiple "Delete all dangling symlinks?" "Nah"
+  local all_response=$?
+  
+  case $all_response in
+    0) # Yeah - ask for each one
+      for i in "${!symlinks_array[@]}"; do
+        local symlink="${symlinks_array[$i]}"
+        local symlink_full="${symlinks_full_array[$i]}"
+        # Replace $HOME with ~ for privacy and readability
+        local display_symlink_full="${symlink_full//$HOME/\~}"
+        # Color the symlink path in the prompt
+        local symlink_path="${display_symlink_full%% ->*}"
+        local arrow_and_target="${display_symlink_full#* }"
+        if [[ -n ${NO_COLOR:-} ]] || [[ ! -t 1 ]]; then
+          _mt_confirm_multiple "Delete this symlink? ${display_symlink_full}" "Yeah"
+        else
+          _mt_confirm_multiple "Delete this symlink? ${MT_COLOR_CYAN}${symlink_path}${MT_COLOR_RESET} ${MT_COLOR_DIM}${arrow_and_target}${MT_COLOR_RESET}" "Yeah"
+        fi
+        local response=$?
+        case $response in
+          0) # Yeah
+            if [[ -L "$symlink" ]]; then
+              rm "$symlink"
+              local symlink_name="${display_symlink_full%% ->*}"
+              if [[ -n ${NO_COLOR:-} ]] || [[ ! -t 1 ]]; then
+                _mt_info "Deleted: ${symlink_name}"
+              else
+                echo -e "${MT_COLOR_GREEN}✓${MT_COLOR_RESET} Deleted: ${MT_COLOR_CYAN}${symlink_name}${MT_COLOR_RESET}"
+              fi
+            else
+              _mt_warning "Symlink no longer exists: ${display_symlink_full%% ->*}"
+            fi
+            ;;
+          1) # Nah
+            local symlink_name="${display_symlink_full%% ->*}"
+            if [[ -n ${NO_COLOR:-} ]] || [[ ! -t 1 ]]; then
+              _mt_info "Skipped: ${symlink_name}"
+            else
+              echo -e "${MT_COLOR_YELLOW}○${MT_COLOR_RESET} Skipped: ${MT_COLOR_CYAN}${symlink_name}${MT_COLOR_RESET}"
+            fi
+            ;;
+          2) # All
+            _mt_info "Deleting all remaining symlinks..."
+            for j in "${!symlinks_array[@]}"; do
+              if (( j < i )); then continue; fi  # Skip already processed
+              local remaining_symlink="${symlinks_array[$j]}"
+              local remaining_symlink_full="${symlinks_full_array[$j]}"
+              local display_remaining="${remaining_symlink_full//$HOME/\~}"
+              if [[ -L "$remaining_symlink" ]]; then
+                rm "$remaining_symlink"
+                local symlink_name="${display_remaining%% ->*}"
+                if [[ -n ${NO_COLOR:-} ]] || [[ ! -t 1 ]]; then
+                  _mt_info "Deleted: ${symlink_name}"
+                else
+                  echo -e "${MT_COLOR_GREEN}✓${MT_COLOR_RESET} Deleted: ${MT_COLOR_CYAN}${symlink_name}${MT_COLOR_RESET}"
+                fi
+              fi
+            done
+            break
+            ;;
+          3) # Quit
+            _mt_info "Stopped cleaning."
+            break
+            ;;
+        esac
+      done
+      ;;
+    1) # Nah
+      _mt_info "No symlinks deleted."
+      ;;
+    2) # All
+      _mt_info "Deleting all dangling symlinks..."
+      for i in "${!symlinks_array[@]}"; do
+        local symlink="${symlinks_array[$i]}"
+        local symlink_full="${symlinks_full_array[$i]}"
+        local display_symlink_full="${symlink_full//$HOME/\~}"
+        if [[ -L "$symlink" ]]; then
+          rm "$symlink"
+          local symlink_name="${display_symlink_full%% ->*}"
+          if [[ -n ${NO_COLOR:-} ]] || [[ ! -t 1 ]]; then
+            _mt_info "Deleted: ${symlink_name}"
+          else
+            echo -e "${MT_COLOR_GREEN}✓${MT_COLOR_RESET} Deleted: ${MT_COLOR_CYAN}${symlink_name}${MT_COLOR_RESET}"
+          fi
+        else
+          _mt_warning "Symlink no longer exists: ${display_symlink_full%% ->*}"
+        fi
+      done
+      ;;
+    3) # Quit
+      _mt_info "Cleaning cancelled."
+      ;;
+  esac
+  
+  # Invalidate cache since we may have deleted symlinks
+  _mt_invalidate_cache
+}

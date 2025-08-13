@@ -26,6 +26,7 @@ mt() {
   source "${MT_ROOT}/lib/stow.sh"
   source "${MT_ROOT}/lib/sync.sh"
   source "${MT_ROOT}/lib/deps.sh"
+  source "${MT_ROOT}/lib/systemd.sh"
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
@@ -86,6 +87,7 @@ mt() {
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
       echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
+      echo "  clean                  Remove dangling symlinks from ~/.metool"
       echo "  --help                 Show this help message and exit"
       echo
       ;;
@@ -176,6 +178,18 @@ mt() {
     deps)
       shift
       _mt_deps "$@"
+      ;;
+    clean)
+      shift
+      _mt_clean "$@"
+      ;;
+    enable)
+      shift
+      _mt_enable "$@"
+      ;;
+    disable)
+      shift
+      _mt_disable "$@"
       ;;
     *)
       _mt_error "Unknown command: $1"

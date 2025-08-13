@@ -110,11 +110,13 @@ _mt_confirm_multiple() {
     # Prepare prompt options (no colors)
     local prompt_options="(Y)eah/(N)ah/(A)ll/(Q)uit/(D)on't ask again [${default_upper}]:"
     
-    # Show prompt and read response
+    # Show prompt and read single character response
     echo -e "$message"
-    read -p "$prompt_options " response
+    echo -n "$prompt_options "
+    read -n1 -s response
+    echo  # Add newline after character input
     
-    # Default if empty response
+    # Default if empty response (shouldn't happen with -n1, but just in case)
     response="${response:-$default}"
     
     # Process response
@@ -134,7 +136,9 @@ _mt_confirm_multiple() {
         d|don\'t|dont)
             # Prompt for which value to remember
             echo "Remember which response?"
-            read -p "(Y)eah/(N)ah/(A)ll/(C)ancel: " remember
+            echo -n "(Y)eah/(N)ah/(A)ll/(C)ancel: "
+            read -n1 -s remember
+            echo  # Add newline after character input
             case "${remember,,}" in
                 y|yeah)
                     export $don_t_ask_var="yeah"
