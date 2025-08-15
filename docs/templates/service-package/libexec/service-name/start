@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# Start the service
+set -o nounset -o pipefail
+
+# Source shared library
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+# shellcheck source=../../lib/service-functions.sh
+source "$SCRIPT_DIR/../../lib/service-functions.sh"
+
+show_help() {
+    cat << EOF
+Start the $SERVICE_NAME service
+
+USAGE:
+    mt-service start [OPTIONS]
+
+OPTIONS:
+    -h, --help       Show help
+    --no-enable      Don't enable the service (start only for this session)
+    --wait SECONDS   Wait for service to start (default: 5)
+    --verbose        Show detailed output
+
+EXAMPLES:
+    mt-service start            # Start and enable service
+    mt-service start --no-enable # Start but don't enable at boot
+
+EOF
+}
+
+main() {
+    local enable_service=true
+    local wait_timeout=5
+    local verbose_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            --no-enable)
+                enable_service=false
+                shift
+                ;;
+            --wait)
+                wait_timeout="$2"
+                if ! [[ "$wait_timeout" =~ ^[0-9]+$ ]]; then
+                    log_error "Wait timeout must be a number"
+                    return 1
+                fi
+                shift 2
+                ;;
+            --verbose)
+                verbose_output=true
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Run 'mt-service start --help' for usage information."
+                return 1
+                ;;
+        esac
+    done
+
+    local os=$(detect_os)
+    if [[ "$os" == "unsupported" ]]; then
+        log_error "Unsupported operating system: $OSTYPE"
+        return 1
+    fi
+
+    # Validate service name
+    validate_service_name "$SERVICE_NAME"
+
+    local service="$SERVICE_NAME"
+    
+    # Check if already running
+    if service_is_active "$service"; then
+        log_warn "Service is already running"
+        if [[ "$verbose_output" == "true" ]]; then
+            "$SCRIPT_DIR/status" --verbose
+        fi
+        return 0
+    fi
+
+    # Check if service unit exists
+    if ! service_unit_exists "$service"; then
+        log_error "Service unit file not found for: $service"
+        log_error "Run 'mt-service install' first to install the service"
+        return 1
+    fi
+
+    log "Starting $service service..."
+    
+    # Start the service
+    if ! start_service "$service"; then
+        log_error "Failed to start service"
+        return 1
+    fi
+
+    # Wait for service to start
+    local attempts=0
+    local max_attempts=$((wait_timeout))
+    
+    while [[ $attempts -lt $max_attempts ]]; do
+        if service_is_active "$service"; then
+            log "Service started successfully"
+            
+            # Show status if verbose
+            if [[ "$verbose_output" == "true" ]]; then
+                echo
+                "$SCRIPT_DIR/status" --verbose
+            else
+                local pid=$(get_service_pid "$service")
+                [[ -n "$pid" ]] && log_info "Service PID: $pid"
+            fi
+            
+            # Enable service if requested
+            if [[ "$enable_service" == "true" ]] && ! service_is_enabled "$service"; then
+                log "Enabling service for automatic startup..."
+                if enable_service "$service"; then
+                    log_verbose "Service enabled successfully"
+                else
+                    log_warn "Failed to enable service for automatic startup"
+                fi
+            fi
+            
+            return 0
+        fi
+        
+        log_verbose "Waiting for service to start... (attempt $((attempts + 1))/$max_attempts)"
+        sleep 1
+        ((attempts++))
+    done
+
+    # Service failed to start within timeout
+    log_error "Service failed to start within $wait_timeout seconds"
+    log_error "Check logs with: mt-service logs"
+    
+    # Show recent logs for debugging
+    log_info "Recent logs:"
+    show_service_logs "$service" false 10 | sed 's/^/  /'
+    
+    return 1
+}
+
+main "$@"

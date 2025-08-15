@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# Show service status
+set -o nounset -o pipefail
+
+# Source shared library
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+# shellcheck source=../../lib/service-functions.sh
+source "$SCRIPT_DIR/../../lib/service-functions.sh"
+
+show_help() {
+    cat << EOF
+Show status of the $SERVICE_NAME service
+
+USAGE:
+    mt-service status [OPTIONS]
+
+OPTIONS:
+    -h, --help      Show help
+    --verbose       Show detailed status information
+    --json          Output status in JSON format
+
+EXAMPLES:
+    mt-service status           # Show basic status
+    mt-service status --verbose # Show detailed status
+
+EOF
+}
+
+show_status_json() {
+    local service="$SERVICE_NAME"
+    local os=$(detect_os)
+    local active=$(service_is_active "$service" && echo "true" || echo "false")
+    local enabled=$(service_is_enabled "$service" && echo "true" || echo "false")
+    local pid=$(get_service_pid "$service" || echo "null")
+    local installed_version=$(get_installed_version "$service")
+    local latest_version=$(get_latest_version "$service")
+    local installed
+    
+    # Set installed flag and format version strings for JSON
+    if [[ "$installed_version" == "not installed" ]]; then
+        installed="false"
+        installed_version="null"
+    else
+        installed="true"
+    fi
+    
+    if [[ "$latest_version" == "unknown" || "$latest_version" == "offline" ]]; then
+        latest_version="null"
+    fi
+    
+    cat << EOF
+{
+  "service": "$service",
+  "os": "$os",
+  "active": $active,
+  "enabled": $enabled,
+  "installed": $installed,
+  "version": $(if [[ "$installed_version" == "null" ]]; then echo "null"; else echo "\"$installed_version\""; fi),
+  "latest_version": $(if [[ "$latest_version" == "null" ]]; then echo "null"; else echo "\"$latest_version\""; fi),
+  "pid": $pid,
+  "config_dir": "$(get_config_dir)",
+  "data_dir": "$(get_data_dir)"
+}
+EOF
+}
+
+show_status_verbose() {
+    local service="$SERVICE_NAME"
+    local os=$(detect_os)
+    
+    log_info "$SERVICE_NAME Service Status"
+    echo
+    
+    # Basic status
+    echo -n "  Service: "
+    get_service_status "$service"
+    
+    # Enabled status
+    echo -n "  Enabled: "
+    if service_is_enabled "$service"; then
+        echo -e "${GREEN}Yes${NC}"
+    else
+        echo -e "${RED}No${NC}"
+    fi
+    
+    # PID
+    local pid=$(get_service_pid "$service")
+    if [[ -n "$pid" ]]; then
+        echo "  PID: $pid"
+    fi
+    
+    # Service file
+    echo -n "  Unit file: "
+    if service_unit_exists "$service"; then
+        echo -e "${GREEN}Found${NC}"
+    else
+        echo -e "${RED}Not found${NC}"
+    fi
+    
+    # Configuration
+    local config_dir=$(get_config_dir)
+    echo -n "  Config dir: "
+    if [[ -d "$config_dir" ]]; then
+        echo -e "${GREEN}$config_dir${NC}"
+    else
+        echo -e "${YELLOW}$config_dir (not found)${NC}"
+    fi
+    
+    # Binary/executable and version
+    echo -n "  Executable: "
+    if is_service_installed "$service"; then
+        local binary=$(get_service_binary "$service")
+        if command -v "$binary" >/dev/null 2>&1; then
+            local binary_path=$(command -v "$binary")
+            echo -e "${GREEN}$binary_path${NC}"
+        else
+            echo -e "${GREEN}Installed${NC}"
+        fi
+        
+        # Version information
+        local installed_version=$(get_installed_version "$service")
+        echo -n "  Version: "
+        if [[ "$installed_version" == "not installed" ]]; then
+            echo -e "${RED}❌ not installed${NC}"
+        else
+            echo -n -e "${GREEN}$installed_version${NC}"
+            
+            # Check for latest version if verbose
+            local latest_version=$(get_latest_version "$service")
+            if [[ "$latest_version" != "unknown" && "$latest_version" != "offline" ]]; then
+                if [[ "$installed_version" != "$latest_version" ]]; then
+                    echo -e " ${YELLOW}(latest: $latest_version)${NC}"
+                else
+                    echo -e " ${GREEN}✓${NC}"
+                fi
+            else
+                echo
+            fi
+        fi
+    else
+        echo -e "${RED}Not found${NC}"
+        echo -e "  Version: ${RED}❌ not installed${NC}"
+    fi
+    
+    # OS-specific details
+    case "$os" in
+        linux)
+            echo
+            log_info "systemd Details:"
+            if service_unit_exists "$service"; then
+                if is_root; then
+                    systemctl show "$service" --property=LoadState,ActiveState,SubState,MainPID,ExecStart 2>/dev/null | sed 's/^/  /'
+                else
+                    systemctl --user show "$service" --property=LoadState,ActiveState,SubState,MainPID,ExecStart 2>/dev/null | sed 's/^/  /'
+                fi
+            fi
+            ;;
+        macos)
+            echo
+            log_info "launchd Details:"
+            local label="com.$SERVICE_NAME"
+            local list_output=$(launchctl list | grep "$label" 2>/dev/null || echo "- - $label (not loaded)")
+            echo "  $list_output"
+            ;;
+    esac
+}
+
+main() {
+    local verbose=false
+    local json=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --json)
+                json=true
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Run 'mt-service status --help' for usage information."
+                return 1
+                ;;
+        esac
+    done
+
+    local os=$(detect_os)
+    if [[ "$os" == "unsupported" ]]; then
+        log_error "Unsupported operating system: $OSTYPE"
+        return 1
+    fi
+
+    # Validate service name
+    validate_service_name "$SERVICE_NAME"
+
+    if [[ "$json" == "true" ]]; then
+        show_status_json
+    elif [[ "$verbose" == "true" ]]; then
+        show_status_verbose
+    else
+        # Simple status
+        local service="$SERVICE_NAME"
+        echo -n "$SERVICE_NAME service: "
+        get_service_status "$service"
+        
+        # Version information
+        local installed_version=$(get_installed_version "$service")
+        echo -n "  Version: "
+        if [[ "$installed_version" == "not installed" ]]; then
+            echo -e "${RED}❌ not installed${NC}"
+        else
+            echo -e "${GREEN}$installed_version${NC}"
+        fi
+        
+        if service_is_active "$service"; then
+            local pid=$(get_service_pid "$service")
+            [[ -n "$pid" ]] && echo "  PID: $pid"
+        fi
+    fi
+}
+
+main "$@"

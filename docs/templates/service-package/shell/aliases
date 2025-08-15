@@ -1,0 +1,25 @@
+# Service management aliases for ServiceName
+
+# Quick status check
+alias service-status='mt-service status'
+
+# Log viewing (most commonly used)
+alias service-logs='mt-service logs -f'
+alias service-logs-tail='mt-service logs -n 100'
+alias service-logs-errors='mt-service logs --grep -i "error\|fail\|exception"'
+
+# Service control
+alias service-start='mt-service start'
+alias service-stop='mt-service stop'
+alias service-restart='mt-service restart'
+
+# Configuration
+alias service-config='mt-service config --edit'
+alias service-config-show='mt-service config --show'
+
+# Enable/disable
+alias service-enable='mt-service enable'
+alias service-disable='mt-service disable'
+
+# Verbose status for troubleshooting
+alias service-debug='mt-service status --verbose && echo && mt-service logs -n 50'

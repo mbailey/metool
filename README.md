@@ -24,7 +24,9 @@ projects.
 - `cd` - Change to mt root or specified target
 - `clone` - Clone a git repository to a canonical location (or show status if already cloned)
 - `components` - List all package components (bin, shell, config, etc.)
+- `disable` - Disable systemd service(s) while preserving service files
 - `edit` - Edit function, executable or file
+- `enable` - Enable systemd service(s) from a package
 - `install` - Symlink package directories: bin, config, shell
 - `modules` - List all metool modules (collections of packages)
 - `packages` - List all metool packages with their parent modules

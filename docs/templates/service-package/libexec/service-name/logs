@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# Show service logs
+set -o nounset -o pipefail
+
+# Source shared library
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+# shellcheck source=../../lib/service-functions.sh
+source "$SCRIPT_DIR/../../lib/service-functions.sh"
+
+show_help() {
+    cat << EOF
+Show logs for the $SERVICE_NAME service
+
+USAGE:
+    mt-service logs [OPTIONS]
+
+OPTIONS:
+    -h, --help       Show help
+    -f, --follow     Follow log output (like tail -f)
+    -n, --lines NUM  Number of lines to show (default: 50)
+    --since TIME     Show logs since time (systemd only)
+                     Examples: "1 hour ago", "yesterday", "2023-01-01 12:00:00"
+    --until TIME     Show logs until time (systemd only)
+    --grep PATTERN   Filter logs by pattern
+    --level LEVEL    Filter by log level (systemd only)
+                     Levels: emerg, alert, crit, err, warning, notice, info, debug
+
+EXAMPLES:
+    mt-service logs              # Show last 50 lines
+    mt-service logs -f           # Follow logs
+    mt-service logs -n 100       # Show last 100 lines
+    mt-service logs --since "1 hour ago"
+    mt-service logs --grep "error"
+
+EOF
+}
+
+main() {
+    local follow=false
+    local lines=50
+    local since=""
+    local until=""
+    local grep_pattern=""
+    local log_level=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            -f|--follow)
+                follow=true
+                shift
+                ;;
+            -n|--lines)
+                lines="$2"
+                if ! [[ "$lines" =~ ^[0-9]+$ ]]; then
+                    log_error "Lines must be a number"
+                    return 1
+                fi
+                shift 2
+                ;;
+            --since)
+                since="$2"
+                shift 2
+                ;;
+            --until)
+                until="$2"
+                shift 2
+                ;;
+            --grep)
+                grep_pattern="$2"
+                shift 2
+                ;;
+            --level)
+                log_level="$2"
+                case "$log_level" in
+                    emerg|alert|crit|err|warning|notice|info|debug) ;;
+                    *)
+                        log_error "Invalid log level: $log_level"
+                        log_error "Valid levels: emerg, alert, crit, err, warning, notice, info, debug"
+                        return 1
+                        ;;
+                esac
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Run 'mt-service logs --help' for usage information."
+                return 1
+                ;;
+        esac
+    done
+
+    local os=$(detect_os)
+    if [[ "$os" == "unsupported" ]]; then
+        log_error "Unsupported operating system: $OSTYPE"
+        return 1
+    fi
+
+    # Validate service name
+    validate_service_name "$SERVICE_NAME"
+
+    local service="$SERVICE_NAME"
+    
+    # Check if service exists
+    if ! service_unit_exists "$service"; then
+        log_error "Service unit file not found for: $service"
+        log_error "Run 'mt-service install' first to install the service"
+        return 1
+    fi
+
+    case "$os" in
+        linux)
+            local journal_args=("--no-pager")
+            
+            # Add user flag if not root
+            if ! is_root; then
+                journal_args+=("--user")
+            fi
+            
+            # Add follow flag
+            if [[ "$follow" == "true" ]]; then
+                journal_args+=("-f")
+            else
+                journal_args+=("-n" "$lines")
+            fi
+            
+            # Add time filters
+            if [[ -n "$since" ]]; then
+                journal_args+=("--since" "$since")
+            fi
+            
+            if [[ -n "$until" ]]; then
+                journal_args+=("--until" "$until")
+            fi
+            
+            # Add log level filter
+            if [[ -n "$log_level" ]]; then
+                journal_args+=("-p" "$log_level")
+            fi
+            
+            # Add unit
+            journal_args+=("-u" "$service")
+            
+            # Show logs with optional grep
+            if [[ -n "$grep_pattern" ]]; then
+                journalctl "${journal_args[@]}" | grep --color=auto "$grep_pattern"
+            else
+                journalctl "${journal_args[@]}"
+            fi
+            ;;
+            
+        macos)
+            if [[ -n "$since" ]] || [[ -n "$until" ]] || [[ -n "$log_level" ]]; then
+                log_warn "Time and level filters are not supported on macOS"
+            fi
+            
+            local log_file="/tmp/${SERVICE_NAME}.out"
+            local err_file="/tmp/${SERVICE_NAME}.err"
+            
+            if [[ "$follow" == "true" ]]; then
+                if [[ -n "$grep_pattern" ]]; then
+                    tail -f "$log_file" "$err_file" 2>/dev/null | grep --color=auto "$grep_pattern" || {
+                        log_warn "Log files not found or service not running"
+                    }
+                else
+                    tail -f "$log_file" "$err_file" 2>/dev/null || {
+                        log_warn "Log files not found. Service may not be running or configured for logging."
+                    }
+                fi
+            else
+                local output=""
+                
+                if [[ -f "$log_file" ]]; then
+                    output+=$(tail -n "$lines" "$log_file" 2>/dev/null)
+                    output+=$'\n'
+                fi
+                
+                if [[ -f "$err_file" ]]; then
+                    output+=$(tail -n "$lines" "$err_file" 2>/dev/null)
+                fi
+                
+                if [[ -z "$output" ]]; then
+                    log_warn "No log files found. Service may not be running or configured for logging."
+                    log_info "Expected log files:"
+                    log_info "  $log_file"
+                    log_info "  $err_file"
+                    return 1
+                fi
+                
+                if [[ -n "$grep_pattern" ]]; then
+                    echo "$output" | grep --color=auto "$grep_pattern"
+                else
+                    echo "$output"
+                fi
+            fi
+            ;;
+    esac
+}
+
+main "$@"

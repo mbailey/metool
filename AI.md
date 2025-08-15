@@ -27,13 +27,16 @@ Metool is the core configuration management tool that uses GNU Stow to manage sy
 
 Always read these metool documentation files:
 - @docs/reference/commands/README.md - Complete command reference
+- @docs/conventions/package-structure.md - Package structure conventions
+- @docs/templates/service-package/README.md - Service package template (for service packages)
 
 ## Key Points for AI Agents
 
 1. **Script Usage**: Use `mtbin` wrapper when calling from scripts (not `mt`)
 2. **Package Structure**: Follow conventions in `docs/conventions/package-structure.md`
-3. **Naming**: Use lowercase-with-hyphens for packages
-4. **Documentation**: Every package needs a README.md
+3. **Service Packages**: For packages managing system services (systemd/launchd), use the template in `docs/templates/service-package/`. This provides unified command structure with install, start, stop, restart, status, enable, disable, logs, and config subcommands.
+4. **Naming**: Use lowercase-with-hyphens for packages
+5. **Documentation**: Every package needs a README.md
 
 ## Quick Reference
 

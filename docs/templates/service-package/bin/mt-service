@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# mt-service - Unified service management for ServiceName
+set -o nounset -o pipefail
+
+# Get absolute path to script, even when called via symlink
+command -v realpath &> /dev/null || {
+    echo "Error: 'realpath' is required but not found. Please install 'coreutils'." >&2
+    exit 1
+}
+SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Export package directory for subcommands
+export SERVICE_PACKAGE_DIR="$PACKAGE_DIR"
+export SERVICE_NAME="${SERVICE_NAME:-service-name}"  # Override in actual implementation
+
+# Source shared library
+# shellcheck source=../lib/service-functions.sh
+source "$PACKAGE_DIR/lib/service-functions.sh"
+
+show_help() {
+    cat << EOF
+mt-service - Manage ServiceName system service
+
+USAGE:
+    mt-service <COMMAND> [OPTIONS]
+
+COMMANDS:
+    install     Install and configure the service
+    uninstall   Remove service and configuration
+    start       Start the service
+    stop        Stop the service
+    restart     Restart the service
+    status      Show service status (default)
+    enable      Enable service at boot/login
+    disable     Disable service at boot/login
+    logs        View service logs
+    config      Manage service configuration
+
+GLOBAL OPTIONS:
+    -h, --help     Show help information
+    -v, --verbose  Enable verbose output
+    --debug        Enable debug output
+
+EXAMPLES:
+    mt-service                      # Show status (default)
+    mt-service install              # Install service
+    mt-service start                # Start service
+    mt-service logs -f              # Follow service logs
+    mt-service config --edit        # Edit configuration
+
+For help with a specific command:
+    mt-service <command> --help
+
+EOF
+}
+
+show_version() {
+    echo "mt-service version 1.0.0"
+}
+
+main() {
+    local subcommand=""
+    local subcommand_args=()
+
+    # Parse global options and subcommand
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            -v|--version)
+                show_version
+                return 0
+                ;;
+            --verbose)
+                export VERBOSE=true
+                shift
+                ;;
+            --debug)
+                export DEBUG=true
+                export VERBOSE=true  # Debug implies verbose
+                shift
+                ;;
+            install|uninstall|start|stop|restart|status|enable|disable|logs|config)
+                subcommand="$1"
+                shift
+                # Remaining arguments go to the subcommand
+                subcommand_args=("$@")
+                break
+                ;;
+            -*)
+                log_error "Unknown global option: $1"
+                echo "Run 'mt-service --help' for usage information."
+                return 1
+                ;;
+            *)
+                log_error "Unknown subcommand: $1"
+                echo "Run 'mt-service --help' for usage information."
+                return 1
+                ;;
+        esac
+    done
+
+    # Default to status if no subcommand specified
+    if [[ -z "$subcommand" ]]; then
+        subcommand="status"
+    fi
+
+    # Find and execute subcommand
+    local subcommand_path="$PACKAGE_DIR/libexec/$SERVICE_NAME/$subcommand"
+    
+    if [[ ! -f "$subcommand_path" ]]; then
+        log_error "Subcommand not found: $subcommand"
+        return 1
+    fi
+
+    if [[ ! -x "$subcommand_path" ]]; then
+        log_error "Subcommand not executable: $subcommand"
+        return 1
+    fi
+
+    # Execute subcommand with remaining arguments
+    "$subcommand_path" "${subcommand_args[@]}"
+}
+
+main "$@"

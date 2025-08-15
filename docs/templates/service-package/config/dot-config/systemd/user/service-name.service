@@ -1,0 +1,40 @@
+[Unit]
+Description=ServiceName - Brief description of what this service does
+Documentation=https://github.com/owner/service-name
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/service-name --config %E/service-name/config.yml
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Working directory
+WorkingDirectory=%h
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%E/service-name %h/.local/share/service-name %h/.cache/service-name
+
+# Resource limits
+MemoryMax=1G
+TasksMax=100
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=service-name
+
+# Environment
+Environment="SERVICE_HOME=%E/service-name"
+Environment="SERVICE_LOG_LEVEL=info"
+EnvironmentFile=-%E/service-name/environment
+
+[Install]
+WantedBy=default.target

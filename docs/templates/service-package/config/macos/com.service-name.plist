@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.service-name</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/service-name</string>
+        <string>--config</string>
+        <string>/Users/USERNAME/.config/service-name/config.yml</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+    
+    <key>ProcessType</key>
+    <string>Background</string>
+    
+    <key>StandardOutPath</key>
+    <string>/tmp/service-name.out</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/tmp/service-name.err</string>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/USERNAME</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SERVICE_HOME</key>
+        <string>/Users/USERNAME/.config/service-name</string>
+        <key>SERVICE_LOG_LEVEL</key>
+        <string>info</string>
+    </dict>
+    
+    <!-- Resource limits -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>1024</integer>
+    </dict>
+    
+    <!-- Restart on failure -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>
