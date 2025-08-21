@@ -27,6 +27,7 @@ mt() {
   source "${MT_ROOT}/lib/sync.sh"
   source "${MT_ROOT}/lib/deps.sh"
   source "${MT_ROOT}/lib/systemd.sh"
+  source "${MT_ROOT}/lib/repos.sh"
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
@@ -83,6 +84,7 @@ mt() {
       echo "  modules                List all metool modules (collections of packages)"
       echo "  packages               List all metool packages with their parent modules"
       echo "  components             List all package components (bin, shell, config, etc.)"
+      echo "  repos discover [-r] [PATH]  Discover git repositories via symlinks"
       echo "  sync [DIR|FILE]        Sync repositories from repos.txt manifest file"
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
@@ -170,6 +172,10 @@ mt() {
           fi
         done
       done <<<"$packages"
+      ;;
+    repos)
+      shift
+      _mt_repos "$@"
       ;;
     sync)
       shift

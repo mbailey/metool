@@ -12,6 +12,7 @@ Alphabetical index of all mt commands:
 - [modules](modules.md) - List all metool modules
 - [packages](packages.md) - List all metool packages
 - [reload](reload.md) - Reload metool after updates
+- [repos](repos.md) - Discover and manage git repositories
 - [sync](sync.md) - Sync repositories from manifest files
 - [update](update.md) - Update metool from git
 
@@ -33,6 +34,7 @@ Alphabetical index of all mt commands:
 
 ### Repository Management
 - `mt clone` - Clone repositories
+- `mt repos` - Discover repositories
 - `mt sync` - Sync from manifest files
 
 ### Maintenance

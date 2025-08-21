@@ -32,7 +32,7 @@ Always read these metool documentation files:
 
 ## Key Points for AI Agents
 
-1. **Script Usage**: Use `mtbin` wrapper when calling from scripts (not `mt`)
+1. **Script Usage**: Use `mtbin` wrapper when calling from scripts (not `mt`). The `mtbin` command is available after metool is installed and can be used to run mt commands from scripts or other programs.
 2. **Package Structure**: Follow conventions in `docs/conventions/package-structure.md`
 3. **Service Packages**: For packages managing system services (systemd/launchd), use the template in `docs/templates/service-package/`. This provides unified command structure with install, start, stop, restart, status, enable, disable, logs, and config subcommands.
 4. **Naming**: Use lowercase-with-hyphens for packages
