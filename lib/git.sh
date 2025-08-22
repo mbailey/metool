@@ -10,14 +10,15 @@ _mt_git() {
       _mt_clone "$@"
       ;;
     repos)
-      _mt_repos "$@"
+      # Go directly to discover since it's the only subcommand
+      _mt_repos_discover "$@"
       ;;
     *)
       echo "Usage: mt git <command>"
       echo ""
       echo "Commands:"
       echo "  clone URL [PATH]     Clone a git repository to a canonical location"
-      echo "  repos discover       Discover git repositories via symlinks and directories"
+      echo "  repos                List git repositories"
       echo ""
       return 1
       ;;

@@ -81,13 +81,9 @@ _mt_completions() {
     local git_subcommands="clone repos"
     COMPREPLY=($(compgen -W "${git_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "repos" ]]; then
-    # Complete with repos subcommands
-    local repos_subcommands="discover"
-    COMPREPLY=($(compgen -W "${repos_subcommands}" -- "${cur}"))
-  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "repos" && ${prev} == "discover" ]]; then
-    # Complete with repos discover flags
-    local discover_flags="-r --recursive --help"
-    COMPREPLY=($(compgen -W "${discover_flags}" -- "${cur}"))
+    # Complete with repos flags directly (no subcommands)
+    local repos_flags="-r --recursive -c --columnise --help"
+    COMPREPLY=($(compgen -W "${repos_flags}" -- "${cur}"))
     # Also add directory completion
     local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${dirs[@]}")

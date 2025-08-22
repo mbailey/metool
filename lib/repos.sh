@@ -20,9 +20,9 @@ _mt_repos_discover() {
         ;;
       -h|--help)
         cat << EOF
-Usage: mt repos discover [-r] [-c] [PATH]
+Usage: mt git repos [-r] [-c] [PATH]
 
-Discover git repositories accessible via symlinks and output in repos.txt format
+List git repositories and output in repos.txt format
 
 Options:
   -r, --recursive    Recursively scan subdirectories
@@ -36,10 +36,10 @@ Where owner/repo is extracted from git remote origin and alias is the symlink pa
 (only shown when different from repo name).
 
 Examples:
-  mt repos discover              # Discover in current directory
-  mt repos discover -r           # Discover recursively
-  mt repos discover -c > repos.txt  # Create columnised repos.txt file
-  mt repos discover -r ~/        # Discover recursively from home
+  mt git repos              # List repos in current directory
+  mt git repos -r           # List repos recursively
+  mt git repos -c > repos.txt  # Create columnised repos.txt file
+  mt git repos -r ~/        # List repos recursively from home
 EOF
         return 0
         ;;
