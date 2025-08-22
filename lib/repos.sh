@@ -50,21 +50,22 @@ EOF
     return 1
   fi
   
-  # Process symlinks
-  process_symlinks() {
-    while IFS= read -r -d '' symlink; do
-      # Skip if symlink is in the search_path itself
-      if [[ "$symlink" == "$search_path" ]]; then
+  # Process git repositories (either symlinks or regular directories)
+  process_git_repos() {
+    while IFS= read -r -d '' path; do
+      # Skip if path is the search_path itself
+      if [[ "$path" == "$search_path" ]]; then
         continue
       fi
       
-      # Resolve the symlink
-      local target
-      target=$(readlink -f "$symlink" 2>/dev/null)
-      
-      # Check if target exists and is a directory
-      if [[ ! -d "$target" ]]; then
-        continue
+      # If it's a symlink, resolve it
+      local target="$path"
+      if [[ -L "$path" ]]; then
+        target=$(readlink -f "$path" 2>/dev/null)
+        # Check if target exists and is a directory
+        if [[ ! -d "$target" ]]; then
+          continue
+        fi
       fi
       
       # Check if it's a git repository
@@ -94,13 +95,13 @@ EOF
       local alias
       if [[ "$search_path" == "." ]]; then
         # For current directory, use basename
-        alias=$(basename "$symlink")
+        alias=$(basename "$path")
       else
         # For other paths, make it relative if possible
-        alias="${symlink#$search_path/}"
-        if [[ "$alias" == "$symlink" ]]; then
+        alias="${path#$search_path/}"
+        if [[ "$alias" == "$path" ]]; then
           # Couldn't make relative, use full path
-          alias="$symlink"
+          alias="$path"
         fi
       fi
       
@@ -109,11 +110,19 @@ EOF
     done | sort | uniq
   }
   
-  # Build and execute find command (don't use -L as it follows symlinks)
+  # Find both symlinks and regular directories containing .git
   if [[ "$recursive" == "false" ]]; then
-    command find "$search_path" -maxdepth 1 -type l -print0 | process_symlinks
+    # Find symlinks and directories with .git subdirectory (non-recursive)
+    { command find "$search_path" -maxdepth 1 -type l -print0 2>/dev/null; \
+      command find "$search_path" -maxdepth 2 -type d -name ".git" -print0 2>/dev/null | while IFS= read -r -d '' gitdir; do
+        printf "%s\0" "$(dirname "$gitdir")"
+      done; } | process_git_repos
   else
-    command find "$search_path" -type l -print0 | process_symlinks
+    # Find symlinks and directories with .git subdirectory (recursive)
+    { command find "$search_path" -type l -print0 2>/dev/null; \
+      command find "$search_path" -type d -name ".git" -print0 2>/dev/null | while IFS= read -r -d '' gitdir; do
+        printf "%s\0" "$(dirname "$gitdir")"
+      done; } | process_git_repos
   fi
 }
 
