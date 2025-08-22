@@ -16,6 +16,9 @@ _mt_git() {
     sync)
       _mt_sync "$@"
       ;;
+    add)
+      _mt_git_add "$@"
+      ;;
     trusted)
       _mt_git_trusted "$@"
       ;;
@@ -23,6 +26,7 @@ _mt_git() {
       echo "Usage: mt git <command>"
       echo ""
       echo "Commands:"
+      echo "  add [REPO] [ALIAS]   Add repository to nearest .repos.txt file"
       echo "  clone URL [PATH]     Clone a git repository to a canonical location"
       echo "  repos                List git repositories"
       echo "  sync [DIR|FILE]      Sync repositories from repos.txt manifest file"
@@ -133,6 +137,214 @@ EOF
   
   echo "UNTRUSTED: $remote_url"
   return 1
+}
+
+# Add repository to nearest .repos.txt file
+_mt_git_add() {
+  local repo=""
+  local alias=""
+  local auto_yes="${MT_GIT_AUTO_ADD:-}"
+  local help=false
+  
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        help=true
+        shift
+        ;;
+      -y|--yes)
+        auto_yes="true"
+        shift
+        ;;
+      *)
+        if [[ -z "$repo" ]]; then
+          repo="$1"
+        elif [[ -z "$alias" ]]; then
+          alias="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+  
+  # Show help if requested
+  if [[ "$help" == "true" ]]; then
+    cat << EOF
+Usage: mt git add [REPO] [ALIAS]
+
+Add a repository to the nearest .repos.txt file
+
+Arguments:
+  REPO              Repository URL or current directory (default: current)
+  ALIAS             Custom alias for the repository
+
+Options:
+  -y, --yes         Add without prompting
+  -h, --help        Show this help message
+
+Environment:
+  MT_GIT_AUTO_ADD   Set to 'true' to always add without prompting
+
+Examples:
+  mt git add                        # Add current repository
+  mt git add owner/repo             # Add specific repository
+  mt git add owner/repo my-alias   # Add with custom alias
+  mt git add --yes                 # Add current repo without prompt
+
+EOF
+    return 0
+  fi
+  
+  # Get current repo if not specified
+  if [[ -z "$repo" ]]; then
+    if [[ ! -d .git ]]; then
+      _mt_error "Not in a git repository"
+      return 1
+    fi
+    repo=$(git remote get-url origin 2>/dev/null)
+    if [[ -z "$repo" ]]; then
+      _mt_error "No remote origin configured"
+      return 1
+    fi
+  fi
+  
+  # Normalize the repository URL
+  local normalized_repo
+  if [[ "$repo" =~ ^(https://|git@) ]]; then
+    # Already a full URL
+    normalized_repo="$repo"
+  else
+    # Convert shorthand to full URL
+    normalized_repo="$(_mt_repo_url "$repo")"
+  fi
+  
+  # Convert full URL back to repos.txt format (owner/repo or special format)
+  local repos_entry
+  if [[ "$normalized_repo" =~ git@github\.com_([^:]+):([^/]+)/([^\.]+) ]]; then
+    # Special SSH identity format
+    local identity="${BASH_REMATCH[1]}"
+    local owner="${BASH_REMATCH[2]}"
+    local repo_name="${BASH_REMATCH[3]}"
+    repos_entry="github.com_${identity}:${owner}/${repo_name}"
+  elif [[ "$normalized_repo" =~ (git@|https://)github\.com[:/]([^/]+)/([^\.]+) ]]; then
+    # Standard GitHub format - use owner/repo shorthand
+    local owner="${BASH_REMATCH[2]}"
+    local repo_name="${BASH_REMATCH[3]}"
+    repos_entry="${owner}/${repo_name}"
+  else
+    # Non-GitHub or complex format - use as-is
+    repos_entry="$repo"
+  fi
+  
+  # Find repos.txt file
+  local repos_file
+  if ! repos_file=$(_mt_find_repos_file); then
+    # No repos.txt found, offer to create one
+    if ! _mt_prompt_create_repos_file; then
+      return 1
+    fi
+    # Try finding again after creation
+    if ! repos_file=$(_mt_find_repos_file); then
+      _mt_error "Failed to find or create .repos.txt"
+      return 1
+    fi
+  fi
+  
+  # Add entry to repos.txt
+  if _mt_add_to_repos_file "$repos_file" "$repos_entry" "$alias" "$auto_yes"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Helper to add entry to repos.txt
+_mt_add_to_repos_file() {
+  local file="$1"
+  local repo="$2"
+  local alias="${3:-}"
+  local auto_yes="${4:-}"
+  
+  # Check for exact duplicate (repo and alias)
+  local entry
+  if [[ -n "$alias" ]]; then
+    entry="${repo}	${alias}"
+  else
+    entry="$repo"
+  fi
+  
+  # Check if entry already exists (match beginning of line to handle tabs/spaces)
+  if grep -q "^${repo}\\([ 	]\\|$\\)" "$file" 2>/dev/null; then
+    _mt_info "Entry already exists in $(basename "$file"): $repo"
+    return 0
+  fi
+  
+  # Prompt unless auto-yes
+  if [[ "${auto_yes}" != "true" ]]; then
+    if [[ -n "$alias" ]]; then
+      echo -n "Add '${repo}' as '${alias}' to $(basename "$file")? [y/N] "
+    else
+      echo -n "Add '${repo}' to $(basename "$file")? [y/N] "
+    fi
+    read -r response
+    if [[ ! "$response" =~ ^[Yy] ]]; then
+      _mt_info "Skipped adding entry"
+      return 0
+    fi
+  fi
+  
+  # Add to file
+  echo "$entry" >> "$file"
+  if [[ -n "$alias" ]]; then
+    _mt_info "Added to $(basename "$file"): ${repo} as ${alias}"
+  else
+    _mt_info "Added to $(basename "$file"): ${repo}"
+  fi
+  return 0
+}
+
+# Prompt to create repos.txt
+_mt_prompt_create_repos_file() {
+  local current_dir="$(pwd)"
+  local git_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+  
+  echo "No .repos.txt found in directory tree."
+  echo "Where would you like to create it?"
+  echo "  1) Current directory ($current_dir)"
+  if [[ -n "$git_root" && "$git_root" != "$current_dir" ]]; then
+    echo "  2) Git root ($git_root)"
+    echo "  3) Cancel"
+    local max_choice=3
+  else
+    echo "  2) Cancel"
+    local max_choice=2
+  fi
+  
+  echo -n "Choice [1-${max_choice}]: "
+  read -r choice
+  
+  case "$choice" in
+    1)
+      touch "${current_dir}/.repos.txt"
+      _mt_info "Created .repos.txt in current directory"
+      return 0
+      ;;
+    2)
+      if [[ "$max_choice" == "3" && -n "$git_root" ]]; then
+        touch "${git_root}/.repos.txt"
+        _mt_info "Created .repos.txt at git root"
+        return 0
+      else
+        _mt_info "Cancelled"
+        return 1
+      fi
+      ;;
+    *)
+      _mt_info "Cancelled"
+      return 1
+      ;;
+  esac
 }
 
 _mt_repo_url() {

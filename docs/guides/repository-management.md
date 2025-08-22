@@ -100,6 +100,41 @@ Complete workflow for setting up a new development machine:
    mt sync ~/repos.txt
    ```
 
+## Capturing Symlinked Home Directory Repositories
+
+A streamlined workflow for migrating commonly-used repositories that are symlinked to your home directory:
+
+### Use Case
+If you maintain symlinks to frequently-accessed repositories in your home directory (e.g., `~/metool` → `~/Code/github.com/mbailey/metool`), you can capture and recreate this exact setup on a new machine.
+
+### On the Source Machine
+```bash
+# Capture only symlinked repositories from home directory
+mt git repos > ~/.repos.txt
+
+# This creates a list of repositories that are:
+# - Symlinked directly in your home directory
+# - Easy to access via cd ~/repo-name
+```
+
+### On the New Machine
+```bash
+# After installing metool (see above)
+# Copy .repos.txt to home directory
+mt sync ~/.repos.txt
+
+# This will:
+# - Clone all repositories to their canonical locations
+# - Create symlinks in your home directory
+# - Preserve your quick-access workflow
+```
+
+### Benefits
+- **Minimal configuration**: Only captures your working set of repositories
+- **Preserves workflow**: Maintains the same `cd ~/repo` access patterns
+- **Version controlled**: Can store `.repos.txt` in your dotfiles repository
+- **Quick migration**: Single command to recreate your environment
+
 ## SSH Key Management
 
 If you use different SSH keys for different GitHub accounts (via keycutter or similar):
