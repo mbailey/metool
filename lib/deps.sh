@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
 # Check dependencies for metool
 
+# Source bash checking utilities
+source "$(dirname "${BASH_SOURCE[0]}")/bash-check.sh"
+
+# Detect OS
+detect_os() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    else
+        echo "unsupported"
+    fi
+}
+
 # Install dependencies using Homebrew (macOS)
 _mt_install_deps_brew() {
+  local auto_mode=${1:-false}
   local deps_to_install=()
   
   # Check each dependency
@@ -25,6 +40,28 @@ _mt_install_deps_brew() {
     deps_to_install+=("bash-completion@2")
   fi
   
+  # Check for modern bash (4.0+)
+  local bash_version_ok=false
+  local bash_path=""
+  
+  # Check homebrew bash first
+  for path in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    if [[ -x "$path" ]]; then
+      local version=$("$path" --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+      local major_version=${version%%.*}
+      if [[ "$major_version" -ge 4 ]]; then
+        bash_version_ok=true
+        bash_path="$path"
+        break
+      fi
+    fi
+  done
+  
+  # If no modern bash found in homebrew locations, offer to install
+  if ! $bash_version_ok; then
+    deps_to_install+=("bash")
+  fi
+  
   # Check for bats (test framework)
   if ! command -v bats &>/dev/null; then
     deps_to_install+=("bats-core")
@@ -41,13 +78,17 @@ _mt_install_deps_brew() {
   done
   echo ""
   
-  # Ask for confirmation
-  read -p "Would you like to install these dependencies? [y/N] " -n 1 -r
-  echo
-  
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Installation cancelled."
-    return 1
+  # Ask for confirmation unless in auto mode
+  if [[ "$auto_mode" == "false" ]]; then
+    read -p "Would you like to install these dependencies? [y/N] " -n 1 -r
+    echo
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "Installation cancelled."
+      return 1
+    fi
+  else
+    echo "Auto-installing dependencies..."
   fi
   
   echo "Installing dependencies..."
@@ -64,6 +105,26 @@ _mt_install_deps_brew() {
   echo ""
   echo "✅ All dependencies installed successfully!"
   
+  # Check if bash was installed and needs to be added to shells
+  if [[ " ${deps_to_install[@]} " =~ " bash " ]]; then
+    local new_bash_path=""
+    for path in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+      if [[ -x "$path" ]]; then
+        new_bash_path="$path"
+        break
+      fi
+    done
+    
+    if [[ -n "$new_bash_path" ]] && ! grep -q "^$new_bash_path$" /etc/shells 2>/dev/null; then
+      echo ""
+      echo "⚠️  To use the new bash as a login shell, add it to /etc/shells:"
+      echo "    echo '$new_bash_path' | sudo tee -a /etc/shells"
+      echo ""
+      echo "To make it your default shell:"
+      echo "    chsh -s $new_bash_path"
+    fi
+  fi
+  
   # Check if bashrc needs updating for bash-completion
   if [[ " ${deps_to_install[@]} " =~ " bash-completion@2 " ]]; then
     echo ""
@@ -77,6 +138,7 @@ _mt_install_deps_brew() {
 _mt_check_deps() {
   local missing_deps=()
   local warnings=()
+  local interactive=${1:-true}  # Allow non-interactive mode
   
   # Check for realpath (required)
   if ! command -v realpath &>/dev/null; then
@@ -94,6 +156,60 @@ _mt_check_deps() {
     echo "     Install: brew install stow (macOS) or apt install stow (Linux)" >&2
   else
     echo "  ✅ stow: Found at $(command -v stow)"
+  fi
+  
+  # Check for modern bash (4.0+) - required for metool
+  if _mt_check_bash_version; then
+    echo "  ✅ bash: Modern bash ($METOOL_BASH_VERSION) found at $METOOL_BASH_PATH"
+    local bash_version_ok=true
+    local bash_path="$METOOL_BASH_PATH"
+  else
+    local bash_version_ok=false
+    local bash_path=""
+    local system_bash_version=$(/bin/bash --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+  fi
+  
+  # Check if /usr/bin/env bash finds the right version
+  if ! _mt_check_env_bash; then
+    local env_bash_version=$(env bash --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    
+    if ! $bash_version_ok; then
+      # No modern bash installed
+      missing_deps+=("bash 4.0+ (metool requires modern bash)")
+      echo "  ❌ bash: System bash is too old (${system_bash_version:-unknown}), need 4.0+" >&2
+      echo "     Install: brew install bash (macOS)" >&2
+      
+      # Offer to install if interactive
+      if [[ "$interactive" == "true" ]]; then
+        if _mt_install_modern_bash true; then
+          # Re-check after installation
+          if _mt_check_bash_version; then
+            bash_version_ok=true
+            bash_path="$METOOL_BASH_PATH"
+            missing_deps=("${missing_deps[@]/bash 4.0+*/}")
+            echo "     ✅ bash: Modern bash ($METOOL_BASH_VERSION) now at $METOOL_BASH_PATH"
+          fi
+        fi
+      fi
+    else
+      # Modern bash installed but not in PATH
+      echo "  ⚠️  bash: 'env bash' finds old version ($env_bash_version)" >&2
+      echo "     Modern bash at $bash_path is not in PATH priority" >&2
+      
+      # Check if it's already configured in shell RC
+      if _mt_is_bash_path_configured "$bash_path"; then
+        echo "     ℹ️  PATH already configured in shell config (restart shell to apply)" >&2
+        # Don't add to warnings since it's already fixed
+      else
+        warnings+=("env bash finds old version ($env_bash_version)")
+        echo "     Add to PATH: export PATH=\"$(dirname $bash_path):\$PATH\"" >&2
+        
+        # Try to fix PATH configuration
+        if [[ "$interactive" == "true" ]]; then
+          _mt_ensure_bash_in_path "$bash_path" true
+        fi
+      fi
+    fi
   fi
   
   # Check for GNU ln with -r support (optional but recommended)
@@ -182,6 +298,7 @@ _mt_check_deps() {
 # Add a mt command to check dependencies
 _mt_deps() {
   local install_flag=false
+  local auto_fix=false
   
   # Parse arguments
   while [[ $# -gt 0 ]]; do
@@ -190,10 +307,31 @@ _mt_deps() {
         install_flag=true
         shift
         ;;
-      *)
-        echo "Usage: mt deps [--install]"
+      --fix|--auto)
+        auto_fix=true
+        install_flag=true
+        shift
+        ;;
+      -h|--help)
+        echo "Usage: mt deps [OPTIONS]"
+        echo ""
+        echo "Check and manage metool dependencies"
+        echo ""
+        echo "Options:"
         echo "  --install    Offer to install missing dependencies (macOS/Homebrew only)"
+        echo "  --fix, --auto  Automatically install missing dependencies without prompting"
+        echo "  -h, --help   Show this help message"
+        echo ""
+        echo "Examples:"
+        echo "  mt deps           # Check dependencies"
+        echo "  mt deps --install # Check and offer to install missing deps"
+        echo "  mt deps --fix     # Automatically fix all missing dependencies"
         return 0
+        ;;
+      *)
+        echo "Unknown option: $1"
+        echo "Run 'mt deps --help' for usage"
+        return 1
         ;;
     esac
   done
@@ -206,9 +344,13 @@ _mt_deps() {
     # Dependencies are missing
     if $install_flag && command -v brew &>/dev/null; then
       echo ""
-      echo "🍺 Homebrew detected. Would you like to install missing dependencies?"
+      if ! $auto_fix; then
+        echo "🍺 Homebrew detected. Would you like to install missing dependencies?"
+      else
+        echo "🍺 Auto-fixing missing dependencies with Homebrew..."
+      fi
       echo ""
-      _mt_install_deps_brew
+      _mt_install_deps_brew "$auto_fix"
     elif $install_flag && ! command -v brew &>/dev/null; then
       echo ""
       echo "❌ --install flag requires Homebrew, which was not found."
@@ -219,6 +361,6 @@ _mt_deps() {
     fi
   elif $install_flag; then
     # All deps installed but --install was used
-    _mt_install_deps_brew
+    _mt_install_deps_brew "$auto_fix"
   fi
 }

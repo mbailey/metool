@@ -1,13 +1,46 @@
 #!/usr/bin/env bash
 #
 # mtbin - Binary wrapper for metool commands
-# Allows scripts to call mt commands without sourcing
+# Allows scripts and non-bash shells to call mt commands without sourcing
+# Works with zsh, fish, and other shells by wrapping mt in bash
 
-# Source metool
+# Check bash version and re-exec with modern bash if needed
+check_bash_version() {
+    local version=$(bash --version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local major_version=${version%%.*}
+    
+    if [[ "$major_version" -lt 4 ]]; then
+        # Try to find modern bash
+        for bash_path in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+            if [[ -x "$bash_path" ]]; then
+                # Re-execute with modern bash
+                exec "$bash_path" "$0" "$@"
+            fi
+        done
+        
+        # If we get here, no modern bash was found
+        echo "Error: metool requires bash 4.0+ (found $version)" >&2
+        echo "Please run: mtbin deps --install" >&2
+        exit 1
+    fi
+}
+
+# Only check version if we haven't already re-executed
+if [[ -z "$MTBIN_BASH_CHECKED" ]]; then
+    export MTBIN_BASH_CHECKED=1
+    check_bash_version "$@"
+fi
+
+# Find metool installation
+# First check if already installed in home
 if [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
     source "$HOME/.metool/shell/metool/mt"
+# Then check if we're in the metool repository
+elif [[ -f "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/shell/mt" ]]; then
+    source "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/shell/mt"
 else
-    echo "Error: metool not found at ~/.metool/shell/metool/mt" >&2
+    echo "Error: metool not found" >&2
+    echo "Please run the installer first: ./install.sh" >&2
     exit 1
 fi
 

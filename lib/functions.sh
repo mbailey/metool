@@ -386,7 +386,13 @@ _mt_update_bashrc() {
 
   # Check if .bashrc exists
   if [[ ! -f "$bashrc" ]]; then
-    _mt_warning "No .bashrc file found at $bashrc"
+    # Only show info if user is using bash as their shell
+    if [[ "$SHELL" == *"bash" ]]; then
+      _mt_info "No .bashrc file found. You may need to create one."
+      _mt_info "To enable metool, add this line to your shell config:"
+      _mt_info "[[ -f \"\${HOME}/.metool/shell/metool/mt\" ]] && source \"\${HOME}/.metool/shell/metool/mt\""
+    fi
+    # For zsh users, this is normal - they use .zshrc
     return 1
   fi
 

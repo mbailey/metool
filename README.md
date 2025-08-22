@@ -83,32 +83,57 @@ Note: `mt install` automatically checks for required dependencies before install
 
 ## Quickstart
 
-Metool itself is a Metool Package you install as you would any other Metool Package:
+### Option 1: One-line installer (Recommended)
 
-1. Install MeTool core:
+```shell
+curl -sSL https://raw.githubusercontent.com/mbailey/metool/master/install.sh | bash
+```
+
+This will:
+- Bootstrap metool using metool itself
+- Clone metool to its canonical location (`~/Code/github.com/mbailey/metool` by default)
+- Install required dependencies (with your permission)
+- Configure your shell (.bashrc or .zshrc)
+- Provide next steps
+
+### Option 2: Manual installation
+
+1. Clone and install MeTool:
 
    ```shell
    git clone https://github.com/mbailey/metool.git
-   source metool/shell/mt
-   mt install  # Installs from MT_ROOT and offers to update .bashrc
+   cd metool
+   ./install.sh
    ```
 
-2. Start using MeTool:
+2. Reload your shell:
 
    ```shell
-   # If you accepted the .bashrc update, restart your shell or:
-   source ~/.bashrc
-
-   # Try some commands
-   mt --help
+   source ~/.bashrc  # or ~/.zshrc for zsh users
    ```
 
-3. Install additional modules:
+3. Verify installation:
 
    ```shell
-   mt clone https://github.com/mbailey/metool-packages.git
-   mt install metool-packages/*
+   mt --help        # if using bash
+   mtbin --help     # works in any shell
    ```
+
+### Install additional packages
+
+```shell
+mt clone https://github.com/mbailey/metool-packages.git
+mt install metool-packages/*
+```
+
+### For zsh users
+
+If you use zsh (default on modern macOS), use the `mtbin` command instead of `mt`:
+
+```shell
+mtbin install package-name
+mtbin deps --install  # Check and install dependencies
+```
 
 ## Metool modules
 
