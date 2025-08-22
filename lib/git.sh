@@ -198,7 +198,7 @@ EOF
   
   # Get current repo if not specified
   if [[ -z "$repo" ]]; then
-    if [[ ! -d .git ]]; then
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
       _mt_error "Not in a git repository"
       return 1
     fi

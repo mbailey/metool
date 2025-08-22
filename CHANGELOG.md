@@ -23,6 +23,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - CONVENTIONS.md restored as main conventions file (from CONVENTIONS.legacy.md)
 - README updated with accurate core command descriptions
 
+### Fixed
+- Test suite failures after git subcommand reorganization
+  - Updated completion tests to reflect `sync` is now under `mt git sync`
+  - Fixed `mt git add` test for .repos.txt creation to handle stdin properly
+  - Fixed `mt git add` to correctly detect git repositories from subdirectories using `git rev-parse`
+  - Added `add` subcommand to bash completion for `mt git`
+
 ### Removed
 - External dependency management system (.repos.txt, .external/ directory)
 - Package editing functionality from `mt edit` command

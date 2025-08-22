@@ -23,18 +23,18 @@ teardown() {
   rm -rf "${TMPDIR}"
 }
 
-@test "mt command completion includes sync" {
-  COMP_WORDS=(mt sy)
-  COMP_CWORD=1
+@test "mt git sync command completion" {
+  COMP_WORDS=(mt git sy)
+  COMP_CWORD=2
   _mt_completions
   
   # Should complete to sync
   [[ " ${COMPREPLY[*]} " =~ " sync " ]]
 }
 
-@test "mt sync completion includes flags" {
-  COMP_WORDS=(mt sync --)
-  COMP_CWORD=2
+@test "mt git sync completion includes flags" {
+  COMP_WORDS=(mt git sync --)
+  COMP_CWORD=3
   _mt_completions
   
   # Should include sync-specific flags
@@ -43,9 +43,9 @@ teardown() {
   [[ " ${COMPREPLY[*]} " =~ " --default-strategy " ]]
 }
 
-@test "mt sync --default-strategy completion includes strategies" {
-  COMP_WORDS=(mt sync --default-strategy sh)
-  COMP_CWORD=3
+@test "mt git sync --default-strategy completion includes strategies" {
+  COMP_WORDS=(mt git sync --default-strategy sh)
+  COMP_CWORD=4
   _mt_completions
   
   # Should complete strategy options

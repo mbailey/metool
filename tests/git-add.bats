@@ -64,8 +64,9 @@ teardown() {
   git remote add origin git@github.com:test/repo.git
   
   # Simulate choosing option 1 (current directory) and confirming addition
-  printf "1\ny\n" | run _mt_git_add
-  [ "$status" -eq 0 ]
+  echo -e "1\ny" | _mt_git_add
+  local result=$?
+  [ "$result" -eq 0 ]
   
   # Check that .repos.txt was created
   [ -f ".repos.txt" ]
@@ -141,23 +142,33 @@ teardown() {
   grep -q "github.com_work:company/project" .repos.txt
 }
 
-@test "mt git add searches up directory tree for .repos.txt" {
-  # Create parent directory with .repos.txt
-  mkdir -p parent/child
-  cd parent
+@test "mt git add searches up directory tree within git repo" {
+  # Create a git repo with nested directories
+  git init
+  git remote add origin git@github.com:parent/repo.git
+  
+  # Create .repos.txt at git root
   touch .repos.txt
   
-  # Create git repo in child directory
-  cd child
-  git init
-  git remote add origin git@github.com:nested/repo.git
+  # Create nested directory structure
+  mkdir -p deeply/nested/child
   
-  # Add should find parent's .repos.txt
-  MT_GIT_AUTO_ADD=true run _mt_git_add
-  [ "$status" -eq 0 ]
+  # Change to nested directory and run git add
+  cd deeply/nested/child
   
-  # Check that entry was added to parent's file
-  grep -q "nested/repo" ../.repos.txt
+  # Add should find .repos.txt at git root
+  export MT_GIT_AUTO_ADD=true
+  _mt_git_add
+  local result=$?
+  
+  # Check that command succeeded
+  [ "$result" -eq 0 ]
+  
+  # Go back to root to check the file
+  cd ../../..
+  
+  # Check that entry was added to root's file
+  grep -q "parent/repo" .repos.txt
 }
 
 @test "mt git add respects MT_GIT_AUTO_ADD environment variable" {

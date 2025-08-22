@@ -69,7 +69,7 @@ _mt_completions() {
     COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
   elif [[ ${prev} == "git" ]]; then
     # Complete with git subcommands
-    local git_subcommands="clone repos sync trusted"
+    local git_subcommands="add clone repos sync trusted"
     COMPREPLY=($(compgen -W "${git_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "repos" ]]; then
     # Complete with repos flags directly (no subcommands)
