@@ -105,8 +105,16 @@ EOF
         fi
       fi
       
+      # Extract just the repo name from owner/repo
+      local repo_name="${owner_repo##*/}"
+      
       # Output in repos.txt format
-      echo "$owner_repo $alias"
+      # Only include alias if it's different from the repo name
+      if [[ "$alias" == "$repo_name" ]]; then
+        echo "$owner_repo"
+      else
+        echo "$owner_repo $alias"
+      fi
     done | sort | uniq
   }
   
