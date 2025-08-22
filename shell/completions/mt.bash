@@ -38,8 +38,8 @@ _mt_completions() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
-  # Get all mt commands from libexec
-  local mt_commands="cd clone edit git install modules packages components repos sync reload update deps clean help"
+  # Get all mt commands from libexec  
+  local mt_commands="cd edit git install modules packages components reload update deps clean"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -54,15 +54,6 @@ _mt_completions() {
   elif [[ ${prev} == "install" || ${prev} == "stow" ]]; then
     # Complete with package names
     _mt_complete_packages
-  elif [[ ${prev} == "clone" ]]; then
-    # Complete with clone flags
-    local clone_flags="--include-identity-in-path --help -h"
-    COMPREPLY=($(compgen -W "${clone_flags}" -- "${cur}"))
-    # Also use default completion for repository names
-    if [[ "${cur}" != -* ]]; then
-      compopt -o default
-      COMPREPLY=()
-    fi
   elif [[ ${prev} == "modules" ]]; then
     # Complete with module names
     _mt_complete_modules
@@ -78,7 +69,7 @@ _mt_completions() {
     COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
   elif [[ ${prev} == "git" ]]; then
     # Complete with git subcommands
-    local git_subcommands="clone repos"
+    local git_subcommands="clone repos sync trusted"
     COMPREPLY=($(compgen -W "${git_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "repos" ]]; then
     # Complete with repos flags directly (no subcommands)
@@ -87,19 +78,8 @@ _mt_completions() {
     # Also add directory completion
     local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${dirs[@]}")
-  elif [[ ${prev} == "repos" ]]; then
-    # Complete with repos subcommands
-    local repos_subcommands="discover"
-    COMPREPLY=($(compgen -W "${repos_subcommands}" -- "${cur}"))
-  elif [[ ${COMP_WORDS[1]} == "repos" && ${prev} == "discover" ]]; then
-    # Complete with repos discover flags
-    local discover_flags="-r --recursive --help"
-    COMPREPLY=($(compgen -W "${discover_flags}" -- "${cur}"))
-    # Also add directory completion
-    local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
-    COMPREPLY+=("${dirs[@]}")
-  elif [[ ${prev} == "sync" ]]; then
-    # Complete with directories and repos.txt files, plus sync flags
+  elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "sync" ]]; then
+    # Complete with sync flags, directories and repos.txt files
     local sync_flags="--file --dry-run --default-strategy --protocol --verbose --force --help"
     COMPREPLY=($(compgen -W "${sync_flags}" -- "${cur}"))
     # Also add directory completion
@@ -108,8 +88,15 @@ _mt_completions() {
     # Add repos.txt file completion  
     local txtfiles=($(compgen -f -X '!*.txt' -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${txtfiles[@]}")
-  elif [[ ${COMP_WORDS[1]} == "sync" ]]; then
-    # Handle sync subcommand arguments
+  elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "trusted" ]]; then
+    # Complete with trusted flags and directories
+    local trusted_flags="-l --list --help"
+    COMPREPLY=($(compgen -W "${trusted_flags}" -- "${cur}"))
+    # Also add directory completion
+    local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
+    COMPREPLY+=("${dirs[@]}")
+  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "sync" ]]; then
+    # Handle git sync subcommand arguments
     case "${prev}" in
       --file)
         # Complete with files
@@ -133,8 +120,8 @@ _mt_completions() {
         COMPREPLY+=("${txtfiles[@]}")
         ;;
     esac
-  elif [[ ${COMP_WORDS[1]} == "clone" ]]; then
-    # Handle clone subcommand arguments
+  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "clone" ]]; then
+    # Handle git clone subcommand arguments
     case "${prev}" in
       --include-identity-in-path)
         # After this flag, we expect a repository
@@ -144,7 +131,7 @@ _mt_completions() {
       *)
         # Check if we've already used --include-identity-in-path
         local has_identity_flag=false
-        for word in "${COMP_WORDS[@]:2:$((COMP_CWORD-2))}"; do
+        for word in "${COMP_WORDS[@]:3:$((COMP_CWORD-3))}"; do
           if [[ "$word" == "--include-identity-in-path" ]]; then
             has_identity_flag=true
             break

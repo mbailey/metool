@@ -81,16 +81,17 @@ mt() {
       echo "  git <subcommand>       Git repository management"
       echo "    clone URL [PATH]     Clone a git repository to a canonical location"
       echo "    repos                List git repositories"
+      echo "    sync [DIR|FILE]      Sync repositories from repos.txt manifest file"
+      echo "    trusted [PATH]       Check if repository is trusted"
       echo "  install [options] [DIR] Symlink package directories: bin,config,shell (defaults to MT_ROOT)"
       echo "  modules                List all metool modules (collections of packages)"
       echo "  packages               List all metool packages with their parent modules"
       echo "  components             List all package components (bin, shell, config, etc.)"
-      echo "  sync [DIR|FILE]        Sync repositories from repos.txt manifest file"
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
       echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
       echo "  clean                  Remove dangling symlinks from ~/.metool"
-      echo "  --help                 Show this help message and exit"
+      echo "  -h, --help             Show this help message and exit"
       echo
       ;;
     cd)
@@ -179,11 +180,12 @@ mt() {
       done <<<"$packages"
       ;;
     repos)
-      # Keep for backwards compatibility
+      # Keep for backwards compatibility - redirect to git repos
       shift  
-      _mt_repos "$@"
+      _mt_repos_discover "$@"
       ;;
     sync)
+      # Keep for backwards compatibility - redirect to git sync
       shift
       _mt_sync "$@"
       ;;
@@ -202,6 +204,10 @@ mt() {
     disable)
       shift
       _mt_disable "$@"
+      ;;
+    help)
+      # Redirect help to -h/--help handler
+      mt --help
       ;;
     *)
       _mt_error "Unknown command: $1"

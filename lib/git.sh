@@ -13,16 +13,126 @@ _mt_git() {
       # Go directly to discover since it's the only subcommand
       _mt_repos_discover "$@"
       ;;
+    sync)
+      _mt_sync "$@"
+      ;;
+    trusted)
+      _mt_git_trusted "$@"
+      ;;
     *)
       echo "Usage: mt git <command>"
       echo ""
       echo "Commands:"
       echo "  clone URL [PATH]     Clone a git repository to a canonical location"
       echo "  repos                List git repositories"
+      echo "  sync [DIR|FILE]      Sync repositories from repos.txt manifest file"
+      echo "  trusted [PATH]       Check if repository is trusted or list patterns"
       echo ""
       return 1
       ;;
   esac
+}
+
+# Check if a git repository is trusted based on URL patterns
+_mt_git_trusted() {
+  local dir="${1:-.}"
+  
+  # Path to trusted patterns file
+  local trust_file="${MT_ROOT}/lib/trusted-projects.txt"
+  
+  # If no arguments, list trusted patterns
+  if [[ "$1" == "" ]] || [[ "$1" == "--list" ]] || [[ "$1" == "-l" ]]; then
+    if [[ -f "$trust_file" ]]; then
+      echo "Trusted repository patterns:"
+      echo ""
+      grep -v '^#' "$trust_file" | grep -v '^[[:space:]]*$' | while read -r pattern; do
+        echo "  $pattern"
+      done
+    else
+      _mt_error "Trust patterns file not found: $trust_file"
+      return 2
+    fi
+    return 0
+  fi
+  
+  # Help option
+  if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    cat << EOF
+Usage: mt git trusted [PATH]
+
+Check if a git repository is trusted based on configured URL patterns
+
+Options:
+  PATH              Directory to check (default: current directory)
+  -l, --list        List all trusted patterns
+  -h, --help        Show this help message
+
+Returns:
+  TRUSTED           Repository matches a trusted pattern
+  UNTRUSTED         Repository does not match any trusted pattern
+  NOT_GIT           Directory is not a git repository
+  NO_REMOTE         Repository has no remote origin
+
+Exit codes:
+  0                 Repository is trusted or listing succeeded
+  1                 Repository is not trusted
+  2                 Error occurred
+
+Examples:
+  mt git trusted              # Check current directory
+  mt git trusted ~/project    # Check specific directory
+  mt git trusted --list       # List all trusted patterns
+EOF
+    return 0
+  fi
+  
+  # Check if trust file exists
+  if [[ ! -f "$trust_file" ]]; then
+    _mt_error "Trust patterns file not found: $trust_file"
+    return 2
+  fi
+  
+  # Change to the directory
+  if ! cd "$dir" 2>/dev/null; then
+    _mt_error "Cannot access directory: $dir"
+    return 2
+  fi
+  
+  # Check if it's a git repository
+  if [[ ! -d .git ]]; then
+    echo "NOT_GIT: $dir"
+    return 1
+  fi
+  
+  # Get the remote origin URL
+  local remote_url
+  remote_url=$(git remote get-url origin 2>/dev/null || echo "")
+  
+  if [[ -z "$remote_url" ]]; then
+    echo "NO_REMOTE: $dir"
+    return 1
+  fi
+  
+  # Read trusted patterns and check for matches
+  while IFS= read -r line; do
+    # Skip comments and empty lines
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${line// }" ]] && continue
+    
+    # Convert glob pattern to regex for prefix matching
+    # Escape special regex characters except *
+    local pattern
+    pattern=$(echo "$line" | sed 's/[.[\$()+?{|]/\\&/g' | sed 's/\*/.*$/g')
+    
+    # Check if URL starts with this pattern
+    if [[ "$remote_url" =~ ^${pattern} ]]; then
+      echo "TRUSTED: $remote_url"
+      return 0
+    fi
+  done < "$trust_file"
+  
+  echo "UNTRUSTED: $remote_url"
+  return 1
 }
 
 _mt_repo_url() {

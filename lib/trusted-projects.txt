@@ -1,0 +1,22 @@
+# Trusted Project Patterns
+# Projects with git remote URLs starting with these patterns are trusted
+# Format: One pattern per line, # for comments
+# Patterns must match from the beginning of the URL
+# * matches any characters
+
+# AI-Cora repositories (all SSH key variants)
+git@github.com:ai-cora/*
+git@github.com_ai-cora:ai-cora/*
+https://github.com/ai-cora/*
+
+# Mike Bailey's repositories (all SSH key variants)
+git@github.com:mbailey/*
+git@github.com_mbailey:mbailey/*
+git@github.com_mbailey-versent:mbailey/*
+https://github.com/mbailey/*
+
+# Specific trusted organizations
+git@github.com:anthropics/*
+https://github.com/anthropics/*
+git@github.com:microsoft/playwright*
+https://github.com/microsoft/playwright*

@@ -22,20 +22,23 @@ projects.
 ## Core Commands
 
 - `cd` - Change to mt root or specified target
-- `clone` - Clone a git repository to a canonical location (or show status if already cloned)
 - `components` - List all package components (bin, shell, config, etc.)
-- `disable` - Disable systemd service(s) while preserving service files
 - `deps` - Check metool dependencies (--install to auto-install on macOS)
+- `disable` - Disable systemd service(s) while preserving service files
 - `edit` - Edit function, executable or file
 - `enable` - Enable systemd service(s) from a package
+- `git` - Git repository management commands:
+  - `clone` - Clone a git repository to a canonical location (or show status if already cloned)
+  - `repos` - List git repositories
+  - `sync` - Sync repositories from repos.txt manifest file
+  - `trusted` - Check if repository is trusted or list patterns
 - `install` - Symlink package directories: bin, config, shell
 - `modules` - List all metool modules (collections of packages)
 - `packages` - List all metool packages with their parent modules
 - `reload` - Reload metool
-- `sync` - Sync repositories from repos.txt manifest file
 - `update` - Update metool from git
 
-Use `--help` for command usage.
+Use `-h` or `--help` for command usage.
 
 ## Real-World Value
 
