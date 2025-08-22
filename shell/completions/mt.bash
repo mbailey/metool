@@ -39,7 +39,7 @@ _mt_completions() {
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   # Get all mt commands from libexec
-  local mt_commands="cd clone edit install modules packages components repos sync reload update deps clean help"
+  local mt_commands="cd clone edit git install modules packages components repos sync reload update deps clean help"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -76,6 +76,21 @@ _mt_completions() {
     # Complete with deps flags
     local deps_flags="--install --help"
     COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
+  elif [[ ${prev} == "git" ]]; then
+    # Complete with git subcommands
+    local git_subcommands="clone repos"
+    COMPREPLY=($(compgen -W "${git_subcommands}" -- "${cur}"))
+  elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "repos" ]]; then
+    # Complete with repos subcommands
+    local repos_subcommands="discover"
+    COMPREPLY=($(compgen -W "${repos_subcommands}" -- "${cur}"))
+  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "repos" && ${prev} == "discover" ]]; then
+    # Complete with repos discover flags
+    local discover_flags="-r --recursive --help"
+    COMPREPLY=($(compgen -W "${discover_flags}" -- "${cur}"))
+    # Also add directory completion
+    local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
+    COMPREPLY+=("${dirs[@]}")
   elif [[ ${prev} == "repos" ]]; then
     # Complete with repos subcommands
     local repos_subcommands="discover"

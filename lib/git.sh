@@ -1,5 +1,29 @@
 # Functions for git operations
 
+# Main git command dispatcher
+_mt_git() {
+  local subcommand="${1:-}"
+  shift || true
+  
+  case "$subcommand" in
+    clone)
+      _mt_clone "$@"
+      ;;
+    repos)
+      _mt_repos "$@"
+      ;;
+    *)
+      echo "Usage: mt git <command>"
+      echo ""
+      echo "Commands:"
+      echo "  clone URL [PATH]     Clone a git repository to a canonical location"
+      echo "  repos discover       Discover git repositories via symlinks and directories"
+      echo ""
+      return 1
+      ;;
+  esac
+}
+
 _mt_repo_url() {
     local repo="${1:-.}"
 
