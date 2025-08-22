@@ -8,6 +8,7 @@ Alphabetical index of all mt commands:
 - [disable](disable.md) - Disable systemd services while preserving service files
 - [edit](edit.md) - Edit functions, executables, packages, or files
 - [enable](enable.md) - Enable systemd services from a package
+- [git](git.md) - Git repository management commands
 - [install](install.md) - Symlink package directories (bin, config, shell)
 - [modules](modules.md) - List all metool modules
 - [packages](packages.md) - List all metool packages
@@ -33,6 +34,7 @@ Alphabetical index of all mt commands:
 - `mt cd` - Navigate to locations
 
 ### Repository Management
+- `mt git` - Git repository management (add, clone, repos, sync, trusted)
 - `mt clone` - Clone repositories
 - `mt repos` - Discover repositories
 - `mt sync` - Sync from manifest files

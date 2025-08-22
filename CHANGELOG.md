@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `mt git add` command for incremental repository management
+  - Add repositories to nearest .repos.txt file
+  - Interactive creation of .repos.txt if not found
+  - Duplicate detection and skip logic
+  - `--yes` flag for non-interactive mode
+  - Support for MT_GIT_AUTO_ADD environment variable
+- Tests for `mt git add` command
+- Documentation for home directory repository workflow
 - AI assistant support with AI.md replacing CLAUDE.md for broader compatibility
 - CONVENTIONS.md as essential reading for AI assistants
 - Comprehensive command listing in README core commands section
