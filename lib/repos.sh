@@ -4,6 +4,7 @@
 # Discover git repositories via symlinks
 _mt_repos_discover() {
   local recursive=false
+  local columnise=false
   local search_path="."
   
   # Parse arguments
@@ -13,26 +14,32 @@ _mt_repos_discover() {
         recursive=true
         shift
         ;;
+      -c|--columnise)
+        columnise=true
+        shift
+        ;;
       -h|--help)
         cat << EOF
-Usage: mt repos discover [-r] [PATH]
+Usage: mt repos discover [-r] [-c] [PATH]
 
 Discover git repositories accessible via symlinks and output in repos.txt format
 
 Options:
   -r, --recursive    Recursively scan subdirectories
+  -c, --columnise    Force column formatting even when piping to file
   PATH              Directory to scan (default: current directory)
 
 Output format:
-  owner/repo alias
+  owner/repo [alias]
 
-Where owner/repo is extracted from git remote origin and alias is the symlink path.
+Where owner/repo is extracted from git remote origin and alias is the symlink path
+(only shown when different from repo name).
 
 Examples:
   mt repos discover              # Discover in current directory
   mt repos discover -r           # Discover recursively
+  mt repos discover -c > repos.txt  # Create columnised repos.txt file
   mt repos discover -r ~/        # Discover recursively from home
-  mt repos discover > repos.txt  # Create repos.txt file
 EOF
         return 0
         ;;
@@ -108,29 +115,41 @@ EOF
       # Extract just the repo name from owner/repo
       local repo_name="${owner_repo##*/}"
       
-      # Output in repos.txt format
+      # Output in repos.txt format with tab separation
       # Only include alias if it's different from the repo name
       if [[ "$alias" == "$repo_name" ]]; then
-        echo "$owner_repo"
+        printf "%s\n" "$owner_repo"
       else
-        echo "$owner_repo $alias"
+        printf "%s\t%s\n" "$owner_repo" "$alias"
       fi
     done | sort | uniq
   }
   
   # Find both symlinks and regular directories containing .git
+  local output
   if [[ "$recursive" == "false" ]]; then
     # Find symlinks and directories with .git subdirectory (non-recursive)
-    { command find "$search_path" -maxdepth 1 -type l -print0 2>/dev/null; \
+    output=$({ command find "$search_path" -maxdepth 1 -type l -print0 2>/dev/null; \
       command find "$search_path" -maxdepth 2 -type d -name ".git" -print0 2>/dev/null | while IFS= read -r -d '' gitdir; do
         printf "%s\0" "$(dirname "$gitdir")"
-      done; } | process_git_repos
+      done; } | process_git_repos)
   else
     # Find symlinks and directories with .git subdirectory (recursive)
-    { command find "$search_path" -type l -print0 2>/dev/null; \
+    output=$({ command find "$search_path" -type l -print0 2>/dev/null; \
       command find "$search_path" -type d -name ".git" -print0 2>/dev/null | while IFS= read -r -d '' gitdir; do
         printf "%s\0" "$(dirname "$gitdir")"
-      done; } | process_git_repos
+      done; } | process_git_repos)
+  fi
+  
+  # Apply columnise if requested
+  if [[ "$columnise" == "true" ]]; then
+    if [[ -n "$output" ]]; then
+      echo "$output" | columnise --force
+    fi
+  else
+    if [[ -n "$output" ]]; then
+      echo "$output"
+    fi
   fi
 }
 

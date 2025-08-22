@@ -1,6 +1,55 @@
 # Set default log level if not specified
 : "${MT_LOG_LEVEL:=INFO}"
 
+# Columnise - format tab-separated output into aligned columns
+# Usage: command | columnise [--force]
+# Options:
+#   --force  Force column formatting even when output is not a terminal
+columnise() {
+  local force=false
+  
+  # Check for --force flag when reading from stdin
+  if [[ ! -t 0 ]] && [[ "$1" == "--force" || "$1" == "-f" ]]; then
+    force=true
+    shift
+  fi
+  
+  if [[ ! -t 0 ]]; then
+    # Input is from pipe/redirect, read from stdin
+    if [[ "$force" == "true" ]] || [[ -t 1 ]]; then
+      # Force mode or output is to terminal - format with columns
+      column -t -s $'\t'
+    else
+      # Output is not to terminal (piped/redirected) - pass through unchanged
+      cat
+    fi
+  elif [[ $# -gt 0 ]]; then
+    # Check for --force flag when processing files
+    if [[ "$1" == "--force" || "$1" == "-f" ]]; then
+      force=true
+      shift
+    fi
+    
+    # Arguments provided, treat as files
+    for file in "$@"; do
+      if [[ -e "$file" ]]; then
+        if [[ "$force" == "true" ]] || [[ -t 1 ]]; then
+          column -t -s $'\t' < "$file"
+        else
+          cat "$file"
+        fi
+      else
+        echo "Error: File '$file' does not exist" >&2
+      fi
+    done
+  else
+    # No input from stdin and no files specified
+    echo "Usage: command | columnise [--force]" >&2
+    echo "       columnise [--force] file1 [file2...]" >&2
+    return 1
+  fi
+}
+
 _mt_log() {
   local level=$1
   shift
