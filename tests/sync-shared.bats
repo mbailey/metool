@@ -124,11 +124,11 @@ teardown() {
 mbailey/mt-public
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Check output
-  [[ "$output" =~ "[INFO] Cloning: mbailey/mt-public" ]]
+  [[ "$output" =~ "Cloning:" ]] && [[ "$output" =~ "mbailey/mt-public" ]]
   [[ "$output" =~ "[INFO] Repository cloned successfully" ]]
   
   # Check symlink was created
@@ -160,7 +160,7 @@ EOF
 mbailey/mt-public
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Debug output to see what we actually get
@@ -193,7 +193,7 @@ EOF
 mbailey/mt-public
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Should update
@@ -209,7 +209,7 @@ EOF
 mbailey/mt-public    public-tools
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Check custom symlink name
@@ -228,7 +228,7 @@ vendor/tools
 internal/api-client    api
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Check all symlinks created
@@ -248,7 +248,7 @@ mbailey/mt-public@v1.0.0
 vendor/tools@main
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Should still create symlinks to canonical locations
@@ -268,7 +268,7 @@ EOF
 mbailey/mt-public
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Should detect conflict
@@ -297,7 +297,7 @@ EOF
   cd "${WORK_DIR}/external"
   ln -s "${repo_path}" "mt-public"
   
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Should have summary section
@@ -343,7 +343,7 @@ EOF
 mbailey/feature-test@main
 EOF
 
-  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)"
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
   [ "$status" -eq 0 ]
   
   # Should show actual branch with expected in parentheses

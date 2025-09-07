@@ -329,8 +329,10 @@ _mt_deps() {
         return 0
         ;;
       *)
-        echo "Unknown option: $1"
-        echo "Run 'mt deps --help' for usage"
+        echo "Usage: mt deps [--install]"
+        echo ""
+        echo "Options:"
+        echo "  --install    Offer to install missing dependencies (macOS/Homebrew only)"
         return 1
         ;;
     esac

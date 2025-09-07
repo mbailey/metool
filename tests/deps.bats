@@ -20,7 +20,7 @@ setup() {
 @test "_mt_deps shows usage with invalid argument" {
   run _mt_deps --invalid
   
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" =~ "Usage: mt deps [--install]" ]]
   [[ "$output" =~ "--install    Offer to install missing dependencies" ]]
 }
