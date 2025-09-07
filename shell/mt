@@ -46,6 +46,12 @@ mt() {
   # mkdir -p "${MT_PKG_DIR}/config" # Not used currently
   command mkdir -p "${MT_PKG_DIR}/shell"
 
+  # Check for global debug flag before other argument processing
+  if [[ "${1:-}" == "--debug" ]] || [[ "${1:-}" == "-d" ]]; then
+    export MT_LOG_LEVEL=DEBUG
+    shift  # Remove debug flag from arguments
+  fi
+
   # Parse command
   if [[ $# -eq 0 ]]; then
 
@@ -73,7 +79,10 @@ mt() {
 
     case $1 in
     -h | --help)
-      echo "Usage: mt [command]"
+      echo "Usage: mt [-d|--debug] [command]"
+      echo
+      echo "Global Options:"
+      echo "  -d, --debug            Enable debug output"
       echo
       echo "Core Commands:"
       echo "  cd [TARGET]            Change to MT_ROOT or specified target"
