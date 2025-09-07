@@ -198,6 +198,7 @@ _mt_sync_parse_args() {
   local repos_file=""
   local work_dir=""
   local dry_run=false
+  local quick=false
   local default_strategy="${MT_SYNC_DEFAULT_STRATEGY:-shared}"
   local show_help=false
   
@@ -214,6 +215,7 @@ _mt_sync_parse_args() {
     echo "REPOS_FILE="
     echo "WORK_DIR="
     echo "DRY_RUN=$dry_run"
+    echo "QUICK=$quick"
     echo "DEFAULT_STRATEGY=$default_strategy"
     echo "SHOW_HELP=$show_help"
     return 0
@@ -226,28 +228,32 @@ _mt_sync_parse_args() {
         show_help=true
         shift
         ;;
-      --file)
+      -f|--file)
         repos_file="$2"
         shift 2
         ;;
-      --dry-run)
+      -n|--dry-run)
         dry_run=true
         shift
         ;;
-      --default-strategy)
+      -q|--quick)
+        quick=true
+        shift
+        ;;
+      -s|--default-strategy)
         default_strategy="$2"
         shift 2
         ;;
-      --protocol)
+      -p|--protocol)
         export MT_GIT_PROTOCOL_DEFAULT="$2"
         shift 2
         ;;
-      --verbose)
+      -v|--verbose)
         # For future use
         shift
         ;;
       --force)
-        # For future use
+        # For future use  
         shift
         ;;
       -*)
@@ -319,6 +325,7 @@ _mt_sync_parse_args() {
   echo "REPOS_FILE=$repos_file"
   echo "WORK_DIR=$work_dir"
   echo "DRY_RUN=$dry_run"
+  echo "QUICK=$quick"
   echo "DEFAULT_STRATEGY=$default_strategy"
   echo "SHOW_HELP=$show_help"
   
@@ -543,6 +550,7 @@ _mt_sync_shared_repo() {
 _mt_sync_process_repos() {
   local repos_file="${1:?repos file required}"
   local work_dir="${2:?working directory required}"
+  local quick="${3:-false}"
   
   # Track results for summary
   local -a sync_results=()
@@ -642,8 +650,8 @@ _mt_sync_process_repos() {
     done
   fi
   
-  # Process updates second
-  if [[ ${#repos_to_update[@]} -gt 0 ]]; then
+  # Process updates second (unless in quick mode)
+  if [[ ${#repos_to_update[@]} -gt 0 ]] && [[ "$quick" != "true" ]]; then
     echo
     _mt_info "Phase 2: Checking existing repositories for updates"
     echo
@@ -687,6 +695,64 @@ _mt_sync_process_repos() {
       fi
       
       # Store result for summary
+      sync_results+=("${repo}\t${ref_display}\t${status}\t${target}\t${strategy}")
+    done
+  elif [[ ${#repos_to_update[@]} -gt 0 ]] && [[ "$quick" == "true" ]]; then
+    # In quick mode, just create/verify symlinks without updating
+    echo
+    _mt_info "Phase 2: Creating symlinks for existing repositories (quick mode)"
+    echo
+    
+    for repo_entry in "${repos_to_update[@]}"; do
+      IFS=$'\t' read -r repo strategy target <<< "$repo_entry"
+      
+      # Extract repository URL
+      local repo_url version=""
+      if [[ "$repo" =~ @ ]]; then
+        repo_url="${repo%%@*}"
+        version="${repo#*@}"
+      else
+        repo_url="$repo"
+      fi
+      
+      # Get the canonical repository path
+      local git_repo_url git_repo_path
+      git_repo_url="$(_mt_repo_url "$repo_url")"
+      git_repo_path="$(_mt_repo_dir "$git_repo_url")"
+      
+      # Create or verify symlink
+      if [[ -L "$target" ]]; then
+        local existing_target
+        existing_target="$(readlink -f "$target" 2>/dev/null || true)"
+        
+        # Normalize both paths
+        local normalized_existing normalized_expected
+        normalized_existing="$(command realpath "$existing_target" 2>/dev/null || echo "$existing_target")"
+        normalized_expected="$(command realpath "$git_repo_path" 2>/dev/null || echo "$git_repo_path")"
+        
+        if [[ "$normalized_existing" == "$normalized_expected" ]]; then
+          _mt_info "Symlink exists: $target -> $git_repo_path"
+          status="linked"
+        else
+          _mt_warning "Symlink points to different location: $target -> $existing_target"
+          _mt_info "Expected: $git_repo_path"
+          status="wrong-link"
+        fi
+      elif [[ -e "$target" ]]; then
+        _mt_error "Target exists and is not a symlink: $target"
+        status="error"
+      else
+        _mt_info "Creating symlink: $target -> $git_repo_path"
+        if _mt_create_relative_symlink "$git_repo_path" "$target"; then
+          status="linked"
+        else
+          _mt_error "Failed to create symlink: $target"
+          status="error"
+        fi
+      fi
+      
+      # Store result for summary
+      local ref_display="${version:-default}"
       sync_results+=("${repo}\t${ref_display}\t${status}\t${target}\t${strategy}")
     done
   fi
@@ -736,12 +802,13 @@ _mt_sync() {
   fi
   
   # Extract parsed values
-  local repos_file work_dir dry_run default_strategy show_help
+  local repos_file work_dir dry_run quick default_strategy show_help
   while IFS= read -r line; do
     case "$line" in
       REPOS_FILE=*) repos_file="${line#*=}" ;;
       WORK_DIR=*) work_dir="${line#*=}" ;;
       DRY_RUN=*) dry_run="${line#*=}" ;;
+      QUICK=*) quick="${line#*=}" ;;
       DEFAULT_STRATEGY=*) default_strategy="${line#*=}" ;;
       SHOW_HELP=*) show_help="${line#*=}" ;;
     esac
@@ -764,13 +831,14 @@ Arguments:
   directory|file    Path to directory containing repos file or path to specific file
 
 Options:
-  --file FILE               specific repos file name (overrides discovery)
-  --default-strategy STRATEGY   default strategy (default: shared)
-  --protocol PROTOCOL       git protocol (default: git, options: git, https)
-  --dry-run                 show actions without executing
-  --verbose                 detailed output
+  -f, --file FILE           specific repos file name (overrides discovery)
+  -s, --default-strategy STRATEGY   default strategy (default: shared)
+  -p, --protocol PROTOCOL   git protocol (default: git, options: git, https)
+  -q, --quick               skip updating existing repositories
+  -n, --dry-run             show actions without executing
+  -v, --verbose             detailed output
   --force                   overwrite existing local repositories
-  --help                    show this help
+  -h, --help                show this help
 
 Examples:
   mt sync                   # discover .repos.txt or repos.txt automatically
@@ -833,9 +901,12 @@ EOF
   # Process the repositories
   _mt_info "Processing repositories from: $repos_file"
   _mt_info "Working directory: $work_dir"
+  if [[ "$quick" == "true" ]]; then
+    _mt_info "Quick mode: skipping updates for existing repositories"
+  fi
   
   local result=0
-  if ! _mt_sync_process_repos "$repos_file" "$work_dir"; then
+  if ! _mt_sync_process_repos "$repos_file" "$work_dir" "$quick"; then
     result=1
   fi
   
