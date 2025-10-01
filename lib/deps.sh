@@ -149,13 +149,33 @@ _mt_check_deps() {
     echo "  ✅ realpath: Found at $(command -v realpath)"
   fi
   
-  # Check for stow (required for mt install)
+  # Check for stow (required for mt install) - need version 2.4.0+
   if ! command -v stow &>/dev/null; then
-    missing_deps+=("stow")
+    missing_deps+=("stow 2.4.0+")
     echo "  ❌ stow: Not found" >&2
     echo "     Install: brew install stow (macOS) or apt install stow (Linux)" >&2
+    echo "     Required: Version 2.4.0+ for proper dot- directory support" >&2
   else
-    echo "  ✅ stow: Found at $(command -v stow)"
+    # Check stow version
+    local stow_version=$(stow --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    if [[ -n "$stow_version" ]]; then
+      # Parse version components
+      local major=$(echo "$stow_version" | cut -d. -f1)
+      local minor=$(echo "$stow_version" | cut -d. -f2)
+
+      # Check if version is 2.4.0 or later
+      if [[ "$major" -gt 2 ]] || ([[ "$major" -eq 2 ]] && [[ "$minor" -ge 4 ]]); then
+        echo "  ✅ stow: Found at $(command -v stow) (version $stow_version)"
+      else
+        missing_deps+=("stow 2.4.0+ (current: $stow_version)")
+        echo "  ❌ stow: Version $stow_version is too old (need 2.4.0+)" >&2
+        echo "     The dot- directory feature requires stow 2.4.0 or later" >&2
+        echo "     Upgrade: brew upgrade stow (macOS) or update your package manager" >&2
+      fi
+    else
+      echo "  ⚠️  stow: Found at $(command -v stow) but couldn't determine version"
+      echo "     Required: Version 2.4.0+ for proper dot- directory support" >&2
+    fi
   fi
   
   # Check for modern bash (4.0+) - required for metool

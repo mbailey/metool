@@ -458,31 +458,6 @@ function-reload() {
 
 complete -F mt_complete_functions function-reload
 
-# Handy function to columnise output
-#
-# Formats tabular data with aligned columns when output is a terminal,
-# but preserves TSV format when piping to another command
-columnise() {
-  # Check if no arguments are provided
-  if [ $# -eq 0 ]; then
-    if ! [[ -t 1 ]]; then
-      cat
-    else
-      column -t -s $'\t'
-    fi
-  else
-    # Loop through all arguments
-    for file in "$@"; do
-      if [ -e "$file" ]; then
-        # Process the file if it exists
-        column -t -s $'\t' < "$file"
-      else
-        # Print an error message if the file doesn't exist
-        echo "Error: File '$file' does not exist" >&2
-      fi
-    done
-  fi
-}
 
 # Helper functions to check what we're editing
 is_function() {

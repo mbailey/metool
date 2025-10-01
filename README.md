@@ -57,9 +57,10 @@ Metool requires the following tools:
 - **GNU coreutils** (for `realpath`)
   - macOS: `brew install coreutils`
   - Ubuntu/Debian: Usually pre-installed
-- **GNU Stow** (for `mt install`)
+- **GNU Stow 2.4.0+** (for `mt install`)
   - macOS: `brew install stow`
-  - Ubuntu/Debian: `apt install stow`
+  - Ubuntu/Debian: `apt install stow` (ensure version 2.4.0 or later)
+  - Required: Version 2.4.0 or later for proper `dot-` directory support
 - **bash-completion** (optional, for alias completion support)
   - macOS: `brew install bash-completion@2`
   - Ubuntu/Debian: `apt install bash-completion`
