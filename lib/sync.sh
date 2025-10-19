@@ -11,9 +11,12 @@ _mt_parse_repos_file() {
   
   # Process each line
   while IFS= read -r line || [[ -n "$line" ]]; do
+    # Strip carriage returns (for Windows line endings)
+    line="${line//$'\r'/}"
+
     # Remove comments (everything after #)
     line="${line%%#*}"
-    
+
     # Skip empty lines and lines with only whitespace
     if [[ -z "${line// }" ]]; then
       continue

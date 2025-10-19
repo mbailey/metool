@@ -529,11 +529,14 @@ _mt_repo_dir() {
 _mt_git_clone() {
     local git_repo_url="$1"
     local git_repo_path="$2"
-    
+
+    # Debug: Show the actual git clone command
+    _mt_debug "git clone '${git_repo_url}' '${git_repo_path}'"
+
     # Create a temporary file to capture output
     local tmp_output
     tmp_output=$(mktemp)
-    
+
     # Run git clone and capture the result
     if git clone "${git_repo_url}" "${git_repo_path}" > "${tmp_output}" 2>&1; then
         _mt_info "Repository cloned successfully"
