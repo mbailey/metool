@@ -1,0 +1,10 @@
+# Shell functions for {PACKAGE_NAME}
+# [TODO: Replace with actual package description]
+
+# Example function
+# [TODO: Replace with actual function description]
+{PACKAGE_NAME}_example() {
+    echo "[TODO: Implement function]"
+}
+
+# Add more functions as needed

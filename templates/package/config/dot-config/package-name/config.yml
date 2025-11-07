@@ -1,0 +1,8 @@
+# Configuration for {PACKAGE_NAME}
+# This file will be symlinked to ~/.config/{PACKAGE_NAME}/config.yml
+
+# [TODO: Add configuration options]
+
+# Example configuration:
+# option1: value1
+# option2: value2

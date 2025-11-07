@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# {PACKAGE_NAME} - Example tool
+# [TODO: Replace with actual tool description]
+
+set -euo pipefail
+
+show_help() {
+    cat << EOF
+{PACKAGE_NAME} - [TODO: Tool description]
+
+Usage: $(basename "$0") [OPTIONS] [ARGS]
+
+Options:
+    -h, --help      Show this help message
+    -v, --verbose   Enable verbose output
+
+Examples:
+    $(basename "$0") --help
+    [TODO: Add usage examples]
+
+EOF
+}
+
+main() {
+    local verbose=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                show_help >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    # TODO: Implement tool functionality
+    echo "[TODO: Implement tool functionality]"
+}
+
+main "$@"

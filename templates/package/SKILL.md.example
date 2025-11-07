@@ -1,0 +1,76 @@
+---
+name: {PACKAGE_NAME}
+description: [TODO: Complete description of what this skill does and when to use it. Be specific about scenarios, file types, or tasks that trigger it.]
+---
+
+# {PACKAGE_TITLE}
+
+## Overview
+
+[TODO: 1-2 sentences explaining what this package/skill enables]
+
+## When to Use
+
+Use this skill when:
+- [TODO: Specific scenario 1]
+- [TODO: Specific scenario 2]
+- [TODO: Specific scenario 3]
+
+## Components
+
+[TODO: Describe the key components of this package]
+
+### Executables (bin/)
+
+- `tool-name` - [TODO: What this tool does]
+
+### Shell Functions (shell/)
+
+- `function_name` - [TODO: What this function does]
+
+### Configuration (config/)
+
+- `.config/package-name/` - [TODO: What configuration this provides]
+
+## Usage Examples
+
+[TODO: Provide concrete examples of how to use this package]
+
+### Example 1: [Scenario]
+
+```bash
+# Example command
+tool-name --option value
+```
+
+### Example 2: [Scenario]
+
+```bash
+# Example function usage
+function_name arg1 arg2
+```
+
+## Common Workflows
+
+[TODO: Describe common workflows or patterns]
+
+### Workflow 1: [Name]
+
+1. Step 1
+2. Step 2
+3. Step 3
+
+## Troubleshooting
+
+[TODO: Common issues and solutions]
+
+### Issue: [Description]
+
+**Solution:** [How to resolve]
+
+## See Also
+
+[TODO: Related documentation or packages]
+
+- [Package Documentation](./README.md) - Package details
+- [Related Package](../related-package/SKILL.md) - Related functionality

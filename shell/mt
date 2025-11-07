@@ -28,6 +28,7 @@ mt() {
   source "${MT_ROOT}/lib/deps.sh"
   source "${MT_ROOT}/lib/systemd.sh"
   source "${MT_ROOT}/lib/repos.sh"
+  source "${MT_ROOT}/lib/package.sh"
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
@@ -95,6 +96,8 @@ mt() {
       echo "  install [options] [DIR] Symlink package directories: bin,config,shell (defaults to MT_ROOT)"
       echo "  modules                List all metool modules (collections of packages)"
       echo "  packages               List all metool packages with their parent modules"
+      echo "  package <subcommand>   Package management"
+      echo "    new NAME [PATH]      Create a new package from template"
       echo "  components             List all package components (bin, shell, config, etc.)"
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
@@ -164,6 +167,10 @@ mt() {
     packages)
       shift
       _mt_get_packages | columnise
+      ;;
+    package)
+      shift
+      _mt_package "$@"
       ;;
     components)
       shift
