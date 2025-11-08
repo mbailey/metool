@@ -442,8 +442,21 @@ _mt_sync_shared_repo() {
         # Use test mock function
         _mt_update_repo "$git_repo_path"
       else
-        # Real update logic would go here
-        echo "[INFO] Updated repository" >&2
+        # Pull the latest changes with rebase
+        local current_branch
+        current_branch=$(git -C "$git_repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null)
+        if [[ -n "$current_branch" && "$current_branch" != "HEAD" ]]; then
+          if git -C "$git_repo_path" pull --rebase --quiet origin "$current_branch" 2>/dev/null; then
+            echo "[INFO] Updated repository" >&2
+          else
+            _mt_error "Failed to pull updates for $git_repo_path"
+            status="error"
+            echo "$status"
+            return 1
+          fi
+        else
+          _mt_debug "Repository is in detached HEAD state, skipping pull"
+        fi
       fi
       status="updated"
     else
