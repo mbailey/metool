@@ -74,13 +74,60 @@ mt() {
 
     # Source all files under MT_PKG_DIR/shell
     if [[ -d "${MT_PKG_DIR}/shell" ]]; then
+      # Detect current shell
+      local current_shell=""
+      if [[ -n "${BASH_VERSION}" ]]; then
+        current_shell="bash"
+      elif [[ -n "${ZSH_VERSION}" ]]; then
+        current_shell="zsh"
+      fi
+      _mt_log DEBUG "Detected shell: $current_shell"
+
       while IFS= read -r -d '' file; do
         if [[ "$(realpath "$file")" == "${SCRIPT_PATH}" ]]; then
           #if [[ "$(realpath "$file")" =~ "${MT_ROOT}" ]]; then
           _mt_log DEBUG "Not sourcing myself ($SCRIPT_PATH): $file"
-        else
+          continue
+        fi
+
+        # Check file extension for shell-specific sourcing
+        local filename="$(basename "$file")"
+        local ext=""
+        if [[ "$filename" == *.* ]]; then
+          ext="${filename##*.}"
+        fi
+
+        # Determine if file should be sourced
+        local should_source=true
+
+        case "$ext" in
+          bash)
+            # .bash files only in bash
+            if [[ "$current_shell" != "bash" ]]; then
+              should_source=false
+            fi
+            ;;
+          zsh)
+            # .zsh files only in zsh
+            if [[ "$current_shell" != "zsh" ]]; then
+              should_source=false
+            fi
+            ;;
+          sh|"")
+            # .sh files and files with no extension work in all shells
+            should_source=true
+            ;;
+          *)
+            # Other extensions (e.g., .py, .md) - source in all shells
+            should_source=true
+            ;;
+        esac
+
+        if [[ "$should_source" == "true" ]]; then
           _mt_log DEBUG "Sourcing $file"
           source "$file"
+        else
+          _mt_log DEBUG "Skipping $file (shell-specific: .$ext, current: $current_shell)"
         fi
       done < <(command find -L "${MT_PKG_DIR}/shell" -type f -not -name ".*" -print0 | command sort -z)
       # Setup bash completion for aliases (only if bash-completion is loaded)
