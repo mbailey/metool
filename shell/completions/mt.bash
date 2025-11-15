@@ -38,8 +38,8 @@ _mt_completions() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
-  # Get all mt commands from libexec  
-  local mt_commands="cd edit git install modules packages components reload update deps clean"
+  # Get all mt commands from libexec
+  local mt_commands="cd edit git module package reload update deps"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -51,17 +51,38 @@ _mt_completions() {
     _mt_complete_functions_and_executables
   elif [[ ${prev} == "edit" ]]; then
     _mt_complete_functions_and_executables
-  elif [[ ${prev} == "install" || ${prev} == "stow" ]]; then
-    # Complete with package names
+  elif [[ ${prev} == "module" ]]; then
+    # Complete with module subcommands
+    local module_subcommands="list add remove edit"
+    COMPREPLY=($(compgen -W "${module_subcommands}" -- "${cur}"))
+  elif [[ ${COMP_WORDS[1]} == "module" && ${prev} == "remove" ]]; then
+    # Complete with module names for removal
+    _mt_complete_modules
+  elif [[ ${COMP_WORDS[1]} == "module" && ${prev} == "edit" ]]; then
+    # Complete with module names for editing
+    _mt_complete_modules
+  elif [[ ${prev} == "package" ]]; then
+    # Complete with package subcommands
+    local package_subcommands="list add remove edit install uninstall service"
+    COMPREPLY=($(compgen -W "${package_subcommands}" -- "${cur}"))
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "remove" ]]; then
+    # Complete with package names for removal
     _mt_complete_packages
-  elif [[ ${prev} == "modules" ]]; then
-    # Complete with module names
-    _mt_complete_modules
-  elif [[ ${prev} == "packages" ]]; then
-    # Complete with module names (to filter packages by module)
-    _mt_complete_modules
-  elif [[ ${prev} == "components" ]]; then
-    # Complete with package names (to filter components by package)
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "edit" ]]; then
+    # Complete with package names for editing
+    _mt_complete_packages
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "install" ]]; then
+    # Complete with package names for installation
+    _mt_complete_packages
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "uninstall" ]]; then
+    # Complete with package names for uninstallation
+    _mt_complete_packages
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "service" ]]; then
+    # Complete with service subcommands
+    local service_subcommands="start stop restart status enable disable logs list"
+    COMPREPLY=($(compgen -W "${service_subcommands}" -- "${cur}"))
+  elif [[ ${COMP_WORDS[1]} == "package" && ${COMP_WORDS[2]} == "service" ]]; then
+    # Complete with package names for service commands
     _mt_complete_packages
   elif [[ ${prev} == "deps" ]]; then
     # Complete with deps flags
