@@ -62,15 +62,25 @@ _mt_package_list() {
 # Add single package to working set (internal function)
 _mt_package_add_single() {
   local package_spec="$1"
+  local module_name=""
+  local package_name=""
 
-  # Parse module/package format
+  # Smart parsing: handle both module/package format and filesystem paths
+  # Strip common path prefixes to get module/package format
+  package_spec="${package_spec#./}"                           # Remove leading ./
+  package_spec="${package_spec#$MT_MODULES_DIR/}"            # Remove ~/.metool/modules/
+  package_spec="${package_spec#${HOME}/.metool/modules/}"    # Remove /home/user/.metool/modules/
+  package_spec="${package_spec#modules/}"                     # Remove modules/
+
+  # Now parse module/package format
   if [[ ! "$package_spec" =~ ^([^/]+)/([^/]+)$ ]]; then
     _mt_error "Invalid format: $package_spec (use: <module>/<package>)"
+    _mt_info "Examples: dev/agents, metool-packages/git-tools, or dev/*"
     return 1
   fi
 
-  local module_name="${BASH_REMATCH[1]}"
-  local package_name="${BASH_REMATCH[2]}"
+  module_name="${BASH_REMATCH[1]}"
+  package_name="${BASH_REMATCH[2]}"
 
   # Check if module is in working set
   if ! _mt_module_in_working_set "$module_name"; then
