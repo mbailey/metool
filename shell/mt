@@ -106,16 +106,21 @@ mt() {
       echo "    repos                List git repositories"
       echo "    sync [DIR|FILE]      Sync repositories from repos.txt manifest file"
       echo "    trusted [PATH]       Check if repository is trusted"
-      echo "  install [options] [DIR] Symlink package directories: bin,config,shell (defaults to MT_ROOT)"
-      echo "  modules                List all metool modules (collections of packages)"
-      echo "  packages               List all metool packages with their parent modules"
+      echo "  module <subcommand>    Module management"
+      echo "    list                 List modules in working set"
+      echo "    add MODULE           Add module to working set"
+      echo "    remove MODULE        Remove module from working set"
+      echo "    edit MODULE          Edit module"
       echo "  package <subcommand>   Package management"
-      echo "    new NAME [PATH]      Create a new package from template"
-      echo "  components             List all package components (bin, shell, config, etc.)"
+      echo "    list                 List packages in working set"
+      echo "    add PKG              Add package to working set"
+      echo "    remove PKG           Remove package from working set"
+      echo "    edit PKG             Edit package"
+      echo "    install PKG          Install package components"
+      echo "    service CMD PKG      Manage package services"
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
       echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
-      echo "  clean                  Remove dangling symlinks from ~/.metool"
       echo "  -h, --help             Show this help message and exit"
       echo
       ;;
@@ -142,29 +147,6 @@ mt() {
       shift
       _mt_edit "$@"
       ;;
-    install)
-      shift
-      # If no arguments provided, default to MT_ROOT
-      if [[ $# -eq 0 ]]; then
-        # Installing metool itself - check dependencies first
-        echo "Checking dependencies before installing metool..."
-        echo ""
-        if ! _mt_check_deps; then
-          echo ""
-          echo "❌ Cannot install metool without required dependencies."
-          if command -v brew &>/dev/null; then
-            echo ""
-            echo "💡 Run 'mt deps --install' to install missing dependencies with Homebrew"
-          fi
-          return 1
-        fi
-        echo ""
-        echo "Installing metool..."
-        _mt_stow "$MT_ROOT"
-      else
-        _mt_stow "$@"
-      fi
-      ;;
     update)
       shift
       _mt_update
@@ -177,40 +159,9 @@ mt() {
       shift
       _mt_module "$@"
       ;;
-    modules)
-      shift
-      _mt_get_modules | columnise
-      ;;
-    packages)
-      shift
-      _mt_get_packages | columnise
-      ;;
     package)
       shift
       _mt_package "$@"
-      ;;
-    components)
-      shift
-      # Get all packages and list their components
-      local packages=$(_mt_get_packages)
-
-      # If an argument is provided, filter by package name
-      if [[ $# -eq 1 ]]; then
-        packages=$(echo "$packages" | command grep -E "^$1\t")
-      fi
-
-      # Print header
-      printf "%-15s %-20s %-40s %s\n" "COMPONENT" "PACKAGE" "MODULE" "PATH"
-      printf "%-15s %-20s %-40s %s\n" "----------" "-------" "------" "----"
-
-      while IFS=$'\t' read -r pkg_name module_name pkg_dir; do
-        # For each package directory, list its components
-        for component in bin shell config docs lib libexec; do
-          if [[ -d "$pkg_dir/$component" ]]; then
-            printf "%-15s %-20s %-40s %s\n" "$component" "$pkg_name" "$module_name" "${pkg_dir}/${component}"
-          fi
-        done
-      done <<<"$packages"
       ;;
     repos)
       # Keep for backwards compatibility - redirect to git repos
@@ -225,18 +176,6 @@ mt() {
     deps)
       shift
       _mt_deps "$@"
-      ;;
-    clean)
-      shift
-      _mt_clean "$@"
-      ;;
-    enable)
-      shift
-      _mt_enable "$@"
-      ;;
-    disable)
-      shift
-      _mt_disable "$@"
       ;;
     help)
       # Redirect help to -h/--help handler
