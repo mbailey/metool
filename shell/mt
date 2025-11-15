@@ -29,6 +29,9 @@ mt() {
   source "${MT_ROOT}/lib/systemd.sh"
   source "${MT_ROOT}/lib/repos.sh"
   source "${MT_ROOT}/lib/package.sh"
+  source "${MT_ROOT}/lib/working-set.sh" # MT-11 working set helpers
+  source "${MT_ROOT}/lib/module.sh" # MT-11 module commands
+  source "${MT_ROOT}/lib/service.sh" # MT-11 service commands
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
@@ -39,6 +42,12 @@ mt() {
   : ${MT_PKG_DIR:="${HOME}/.metool"}
   export MT_PKG_DIR
 
+  # Working set directories (MT-11)
+  : ${MT_MODULES_DIR:="${MT_PKG_DIR}/modules"}
+  : ${MT_PACKAGES_DIR:="${MT_PKG_DIR}/packages"}
+  export MT_MODULES_DIR
+  export MT_PACKAGES_DIR
+
   _mt_log DEBUG "SCRIPT_PATH=${SCRIPT_PATH}"
   _mt_log DEBUG "MT_ROOT=${MT_ROOT}"
 
@@ -46,6 +55,10 @@ mt() {
   command mkdir -p "${MT_PKG_DIR}/bin"
   # mkdir -p "${MT_PKG_DIR}/config" # Not used currently
   command mkdir -p "${MT_PKG_DIR}/shell"
+
+  # Ensure working set dirs exist (MT-11)
+  command mkdir -p "${MT_MODULES_DIR}"
+  command mkdir -p "${MT_PACKAGES_DIR}"
 
   # Check for global debug flag before other argument processing
   if [[ "${1:-}" == "--debug" ]] || [[ "${1:-}" == "-d" ]]; then
@@ -159,6 +172,10 @@ mt() {
     reload)
       shift
       _mt_source "${MT_ROOT}/shell/mt"
+      ;;
+    module)
+      shift
+      _mt_module "$@"
       ;;
     modules)
       shift
