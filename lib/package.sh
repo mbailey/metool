@@ -6,6 +6,26 @@ _mt_package_list() {
   # Ensure packages directory exists
   mkdir -p "${MT_PACKAGES_DIR}"
 
+  # Build index of installed packages for performance
+  # (avoid calling find 3x per package)
+  local -A installed_packages
+  for component_dir in bin shell config; do
+    local stow_dir="${MT_PKG_DIR}/${component_dir}"
+    [[ -d "$stow_dir" ]] || continue
+
+    while IFS= read -r link; do
+      [[ -L "$link" ]] || continue
+      local link_target
+      link_target=$(readlink -f "$link" 2>/dev/null) || continue
+
+      # Extract package name from symlink target path
+      # Expected format: .../.metool/modules/<module>/<package>/...
+      if [[ "$link_target" =~ /modules/[^/]+/([^/]+)/ ]]; then
+        installed_packages["${BASH_REMATCH[1]}"]=1
+      fi
+    done < <(find "$stow_dir" -type l 2>/dev/null)
+  done
+
   # Check if any packages exist
   local package_count=0
   local -a packages=()
@@ -23,8 +43,8 @@ _mt_package_list() {
       broken=true
       target="${target:-broken}"
     else
-      # Check if package is installed (using helper function)
-      if _mt_package_is_installed "$package_name"; then
+      # Check if package is installed using pre-built index
+      if [[ -n "${installed_packages[$package_name]}" ]]; then
         status="●"  # Installed
       fi
     fi
@@ -32,7 +52,9 @@ _mt_package_list() {
     # Extract module name from target path
     local module_name=""
     if [[ "$broken" == "false" ]]; then
-      module_name=$(_mt_package_module_name "$package_name" 2>/dev/null || echo "")
+      if [[ "$target" =~ /modules/([^/]+)/.+$ ]]; then
+        module_name="${BASH_REMATCH[1]}"
+      fi
     fi
 
     packages+=("${status}\t${package_name}\t${module_name}\t${target}")
