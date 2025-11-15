@@ -99,18 +99,7 @@ _mt_package_add_single() {
   # Check if package exists in module
   local package_path="${module_path}/${package_name}"
   if [[ ! -d "$package_path" ]]; then
-    _mt_error "Package not found in module: $package_name"
-    _mt_info "Module path: $module_path"
-
-    # List available packages
-    _mt_info "Available packages in $module_name:"
-    while IFS= read -r pkg_dir; do
-      local pkg=$(basename "$pkg_dir")
-      # Skip hidden directories and the module root itself
-      [[ "$pkg" == .* ]] && continue
-      [[ "$pkg_dir" == "$module_path" ]] && continue
-      echo "  - $pkg"
-    done < <(find "$module_path" -maxdepth 1 -type d 2>/dev/null | sort)
+    _mt_error "Package not found: $module_name/$package_name"
     return 1
   fi
 
