@@ -59,20 +59,13 @@ _mt_package_list() {
   _mt_info "Total packages: $package_count"
 }
 
-# Add package to working set
-_mt_package_add() {
+# Add single package to working set (internal function)
+_mt_package_add_single() {
   local package_spec="$1"
-
-  # Validate input
-  if [[ -z "$package_spec" ]]; then
-    _mt_error "Usage: mt package add <module>/<package>"
-    _mt_info "Example: mt package add metool-packages/git-tools"
-    return 1
-  fi
 
   # Parse module/package format
   if [[ ! "$package_spec" =~ ^([^/]+)/([^/]+)$ ]]; then
-    _mt_error "Invalid format. Use: <module>/<package>"
+    _mt_error "Invalid format: $package_spec (use: <module>/<package>)"
     return 1
   fi
 
@@ -132,12 +125,49 @@ _mt_package_add() {
   _mt_info "Adding package to working set: $package_name"
   if _mt_create_relative_symlink "$package_path" "$working_set_link"; then
     _mt_info "✓ Package added: $package_name"
-    _mt_info "Install with: mt package install $package_name"
     return 0
   else
     _mt_error "Failed to create symlink"
     return 1
   fi
+}
+
+# Add package(s) to working set (supports multiple packages and globs)
+_mt_package_add() {
+  # Validate input
+  if [[ $# -eq 0 ]]; then
+    _mt_error "Usage: mt package add <module>/<package> [<module>/<package>...]"
+    _mt_info "Examples:"
+    _mt_info "  mt package add metool-packages/git-tools"
+    _mt_info "  mt package add dev/tool1 dev/tool2"
+    _mt_info "  mt package add dev/*"
+    return 1
+  fi
+
+  local success_count=0
+  local fail_count=0
+  local skip_count=0
+
+  # Process each package spec
+  for package_spec in "$@"; do
+    if _mt_package_add_single "$package_spec"; then
+      ((success_count++))
+    else
+      ((fail_count++))
+    fi
+  done
+
+  # Summary for multiple packages
+  if [[ $# -gt 1 ]]; then
+    echo
+    _mt_info "Summary: $success_count added, $fail_count failed"
+    if [[ $success_count -gt 0 ]]; then
+      _mt_info "Install with: mt package install <package>"
+    fi
+  fi
+
+  # Return success if at least one package was added
+  [[ $success_count -gt 0 ]]
 }
 
 # Remove package from working set
@@ -543,6 +573,8 @@ Service Commands:
 Examples:
   mt package list
   mt package add metool-packages/git-tools
+  mt package add dev/tool1 dev/tool2        # Add multiple packages
+  mt package add dev/*                      # Add all packages from module
   mt package install git-tools
   mt package install vim-config --no-bin --no-shell
   mt package service start prometheus
