@@ -214,16 +214,6 @@ mt() {
       shift
       _mt_package "$@"
       ;;
-    repos)
-      # Keep for backwards compatibility - redirect to git repos
-      shift  
-      _mt_repos_discover "$@"
-      ;;
-    sync)
-      # Keep for backwards compatibility - redirect to git sync
-      shift
-      _mt_sync "$@"
-      ;;
     deps)
       shift
       _mt_deps "$@"
