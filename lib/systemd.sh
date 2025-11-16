@@ -202,8 +202,8 @@ EOF
   
   # Restore the service file symlinks that systemd removed
   echo "Restoring service file symlinks..."
-  _mt_stow "$package" || _mt_warn "Failed to restore some symlinks"
-  
+  _mt_stow "$package" || _mt_warning "Failed to restore some symlinks"
+
   # Reload systemd to pick up any changes
   systemctl --user daemon-reload
   

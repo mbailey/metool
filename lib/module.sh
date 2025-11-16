@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # module.sh - Module management commands (MT-11)
 
+# Get module names from working set (for completion)
+# Returns one module name per line
+_mt_get_working_set_modules() {
+  mkdir -p "${MT_MODULES_DIR}"
+
+  find "${MT_MODULES_DIR}" -maxdepth 1 -type l 2>/dev/null | while IFS= read -r module_link; do
+    [[ -L "$module_link" ]] || continue
+    basename "$module_link"
+  done | sort
+}
+
 # List modules in working set
 _mt_module_list() {
   # Ensure modules directory exists
@@ -165,11 +176,11 @@ _mt_module_remove() {
 
   # Warn if packages are using this module
   if [[ ${#packages_using_module[@]} -gt 0 ]]; then
-    _mt_warn "The following packages from this module are in your package working set:"
+    _mt_warning "The following packages from this module are in your package working set:"
     for pkg in "${packages_using_module[@]}"; do
-      _mt_warn "  - $pkg"
+      _mt_warning "  - $pkg"
     done
-    _mt_warn "Remove these packages first with: mt package remove <package>"
+    _mt_warning "Remove these packages first with: mt package remove <package>"
     echo
 
     # Prompt for confirmation
@@ -332,7 +343,7 @@ EOF
     current_branch=$(git -C "$target" rev-parse --abbrev-ref HEAD 2>/dev/null)
 
     if [[ -n $(git -C "$target" status --porcelain 2>/dev/null) ]]; then
-      _mt_warn "  Uncommitted changes detected, skipping: $module_name"
+      _mt_warning "  Uncommitted changes detected, skipping: $module_name"
       ((failed_count++))
       failed_modules+=("$module_name (uncommitted changes)")
       continue
@@ -357,9 +368,9 @@ EOF
   fi
 
   if [[ $failed_count -gt 0 ]]; then
-    _mt_warn "Failed to update $failed_count module(s):"
+    _mt_warning "Failed to update $failed_count module(s):"
     for failed_module in "${failed_modules[@]}"; do
-      _mt_warn "  - $failed_module"
+      _mt_warning "  - $failed_module"
     done
     return 1
   fi

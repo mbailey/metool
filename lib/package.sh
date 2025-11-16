@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # Functions for package creation and management
 
+# Get package names from working set (for completion)
+# Returns one package name per line
+_mt_get_working_set_packages() {
+  mkdir -p "${MT_PACKAGES_DIR}"
+
+  find "${MT_PACKAGES_DIR}" -maxdepth 1 -type l 2>/dev/null | while IFS= read -r package_link; do
+    [[ -L "$package_link" ]] || continue
+    basename "$package_link"
+  done | sort
+}
+
 # List packages in working set
 _mt_package_list() {
   # Ensure packages directory exists
@@ -220,8 +231,8 @@ _mt_package_remove() {
 
   # Check if package is installed
   if _mt_package_is_installed "$package_name"; then
-    _mt_warn "Package is currently installed (stowed)"
-    _mt_warn "Removing from working set will not unstow it"
+    _mt_warning "Package is currently installed (stowed)"
+    _mt_warning "Removing from working set will not unstow it"
     _mt_info "To unstow: cd to package and run 'stow -D .' or use mt doctor --fix"
     echo
 
@@ -431,7 +442,7 @@ _mt_package_uninstall() {
 
   # Check if package is in working set
   if ! _mt_package_in_working_set "$package_name"; then
-    _mt_warn "Package not in working set: $package_name"
+    _mt_warning "Package not in working set: $package_name"
     _mt_info "Checking if package is installed anyway..."
   fi
 
@@ -487,7 +498,7 @@ _mt_package_uninstall() {
     if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/bin" bin 2>&1; then
       uninstalled_components+=("bin")
     else
-      _mt_warn "Failed to uninstall bin component (may not have been installed)"
+      _mt_warning "Failed to uninstall bin component (may not have been installed)"
     fi
   elif $skip_bin && [[ -d "$package_path/bin" ]]; then
     skipped_components+=("bin")
@@ -503,10 +514,10 @@ _mt_package_uninstall() {
         # Clean up empty metool config directory
         rmdir "${MT_PKG_DIR}/config/${package_name}" 2>/dev/null || true
       else
-        _mt_warn "Failed to uninstall config component from metool"
+        _mt_warning "Failed to uninstall config component from metool"
       fi
     else
-      _mt_warn "Failed to uninstall config component from home"
+      _mt_warning "Failed to uninstall config component from home"
     fi
   elif $skip_config && [[ -d "$package_path/config" ]]; then
     skipped_components+=("config")
@@ -519,7 +530,7 @@ _mt_package_uninstall() {
       # Clean up empty metool shell directory
       rmdir "${MT_PKG_DIR}/shell/${package_name}" 2>/dev/null || true
     else
-      _mt_warn "Failed to uninstall shell component"
+      _mt_warning "Failed to uninstall shell component"
     fi
   elif $skip_shell && [[ -d "$package_path/shell" ]]; then
     skipped_components+=("shell")

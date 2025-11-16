@@ -13,24 +13,22 @@ _mt_complete_functions() {
 }
 
 _mt_complete_modules() {
-  local modules=$(_mt_get_modules 2>/dev/null)
+  # Get modules from working set (MT-11)
   local module_names=""
-  
-  while IFS=$'\t' read -r module_name _; do
-    module_names+=" ${module_name}"
-  done <<< "$modules"
-  
+  if type -t _mt_get_working_set_modules &>/dev/null; then
+    module_names=$(_mt_get_working_set_modules 2>/dev/null | tr '\n' ' ')
+  fi
+
   COMPREPLY=($(compgen -W "${module_names}" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
 _mt_complete_packages() {
-  local packages=$(_mt_get_packages 2>/dev/null)
+  # Get packages from working set (MT-11)
   local package_names=""
-  
-  while IFS=$'\t' read -r package_name _ _; do
-    package_names+=" ${package_name}"
-  done <<< "$packages"
-  
+  if type -t _mt_get_working_set_packages &>/dev/null; then
+    package_names=$(_mt_get_working_set_packages 2>/dev/null | tr '\n' ' ')
+  fi
+
   COMPREPLY=($(compgen -W "${package_names}" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
