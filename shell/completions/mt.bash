@@ -46,7 +46,12 @@ _mt_completions() {
   fi
 
   if [[ ${COMP_CWORD} == 1 ]]; then
-    COMPREPLY=($(compgen -W "${mt_commands}" -- "${cur}"))
+    # Complete with commands and global flags
+    if [[ "${cur}" == -* ]]; then
+      COMPREPLY=($(compgen -W "-d --debug -h --help" -- "${cur}"))
+    else
+      COMPREPLY=($(compgen -W "${mt_commands}" -- "${cur}"))
+    fi
   elif [[ ${prev} == "cd" ]]; then
     _mt_complete_functions_and_executables
   elif [[ ${prev} == "edit" ]]; then
@@ -70,7 +75,7 @@ _mt_completions() {
     fi
   elif [[ ${prev} == "package" ]]; then
     # Complete with package subcommands
-    local package_subcommands="list add remove edit install uninstall service"
+    local package_subcommands="list add remove edit install uninstall service new"
     COMPREPLY=($(compgen -W "${package_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "remove" ]]; then
     # Complete with package names for removal
@@ -79,11 +84,19 @@ _mt_completions() {
     # Complete with package names for editing
     _mt_complete_packages
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "install" ]]; then
-    # Complete with package names for installation
-    _mt_complete_packages
+    # Complete with package names for installation or flags
+    if [[ "${cur}" == -* ]]; then
+      COMPREPLY=($(compgen -W "--no-bin --no-config --no-shell --help" -- "${cur}"))
+    else
+      _mt_complete_packages
+    fi
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "uninstall" ]]; then
-    # Complete with package names for uninstallation
-    _mt_complete_packages
+    # Complete with package names for uninstallation or flags
+    if [[ "${cur}" == -* ]]; then
+      COMPREPLY=($(compgen -W "--no-bin --no-config --no-shell --help" -- "${cur}"))
+    else
+      _mt_complete_packages
+    fi
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "service" ]]; then
     # Complete with service subcommands
     local service_subcommands="start stop restart status enable disable logs list"
@@ -93,7 +106,7 @@ _mt_completions() {
     _mt_complete_packages
   elif [[ ${prev} == "deps" ]]; then
     # Complete with deps flags
-    local deps_flags="--install --help"
+    local deps_flags="--install --fix --auto --help"
     COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
   elif [[ ${prev} == "git" ]]; then
     # Complete with git subcommands
