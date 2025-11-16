@@ -53,7 +53,7 @@ _mt_completions() {
     _mt_complete_functions_and_executables
   elif [[ ${prev} == "module" ]]; then
     # Complete with module subcommands
-    local module_subcommands="list add remove edit"
+    local module_subcommands="list add remove edit update"
     COMPREPLY=($(compgen -W "${module_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "module" && ${prev} == "remove" ]]; then
     # Complete with module names for removal
@@ -61,6 +61,13 @@ _mt_completions() {
   elif [[ ${COMP_WORDS[1]} == "module" && ${prev} == "edit" ]]; then
     # Complete with module names for editing
     _mt_complete_modules
+  elif [[ ${COMP_WORDS[1]} == "module" && ${prev} == "update" ]]; then
+    # Complete with module names for updating, or --all flag
+    if [[ "${cur}" == -* ]]; then
+      COMPREPLY=($(compgen -W "-a --all --help" -- "${cur}"))
+    else
+      _mt_complete_modules
+    fi
   elif [[ ${prev} == "package" ]]; then
     # Complete with package subcommands
     local package_subcommands="list add remove edit install uninstall service"

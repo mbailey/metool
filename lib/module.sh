@@ -225,6 +225,148 @@ _mt_module_edit() {
   "$editor" "$target"
 }
 
+# Update module(s) from git
+_mt_module_update() {
+  local update_all=false
+  local -a modules_to_update=()
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -a|--all)
+        update_all=true
+        shift
+        ;;
+      -h|--help)
+        cat <<EOF
+Usage: mt module update [OPTIONS] [MODULE...]
+
+Update module(s) from git remote.
+
+Options:
+  -a, --all           Update all modules
+  -h, --help          Show this help
+
+Arguments:
+  MODULE              Module name(s) to update
+
+Examples:
+  mt module update metool-packages
+  mt module update metool-packages metool-packages-dev
+  mt module update --all
+
+EOF
+        return 0
+        ;;
+      -*)
+        _mt_error "Unknown option: $1"
+        _mt_info "Run 'mt module update --help' for usage"
+        return 1
+        ;;
+      *)
+        modules_to_update+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  # Determine which modules to update
+  if [[ "$update_all" == true ]]; then
+    # Get all modules from working set
+    while IFS= read -r module_link; do
+      [[ -L "$module_link" ]] || continue
+      modules_to_update+=("$(basename "$module_link")")
+    done < <(find "${MT_MODULES_DIR}" -maxdepth 1 -type l 2>/dev/null | sort)
+
+    if [[ ${#modules_to_update[@]} -eq 0 ]]; then
+      _mt_info "No modules in working set to update"
+      return 0
+    fi
+  elif [[ ${#modules_to_update[@]} -eq 0 ]]; then
+    _mt_error "Usage: mt module update [OPTIONS] [MODULE...]"
+    _mt_info "Specify module name(s) or use --all to update all modules"
+    _mt_info "Run 'mt module update --help' for more information"
+    return 1
+  fi
+
+  # Update each module
+  local updated_count=0
+  local failed_count=0
+  local -a failed_modules=()
+
+  for module_name in "${modules_to_update[@]}"; do
+    local working_set_link="${MT_MODULES_DIR}/${module_name}"
+
+    # Check if module exists in working set
+    if [[ ! -L "$working_set_link" ]]; then
+      _mt_error "Module not in working set: $module_name"
+      ((failed_count++))
+      failed_modules+=("$module_name")
+      continue
+    fi
+
+    # Get target path
+    local target
+    target=$(readlink -f "$working_set_link" 2>/dev/null)
+
+    if [[ -z "$target" ]] || [[ ! -d "$target" ]]; then
+      _mt_error "Module symlink is broken: $module_name"
+      ((failed_count++))
+      failed_modules+=("$module_name")
+      continue
+    fi
+
+    # Check if it's a git repository
+    if [[ ! -d "$target/.git" ]]; then
+      _mt_error "Not a git repository: $module_name ($target)"
+      ((failed_count++))
+      failed_modules+=("$module_name")
+      continue
+    fi
+
+    # Update the module
+    _mt_info "Updating module: $module_name"
+
+    # Get current branch and check for uncommitted changes
+    local current_branch
+    current_branch=$(git -C "$target" rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+    if [[ -n $(git -C "$target" status --porcelain 2>/dev/null) ]]; then
+      _mt_warn "  Uncommitted changes detected, skipping: $module_name"
+      ((failed_count++))
+      failed_modules+=("$module_name (uncommitted changes)")
+      continue
+    fi
+
+    # Pull changes
+    _mt_debug "  Running: git -C $target pull"
+    if git -C "$target" pull 2>&1 | sed 's/^/  /'; then
+      _mt_info "  ✓ Updated: $module_name"
+      ((updated_count++))
+    else
+      _mt_error "  Failed to update: $module_name"
+      ((failed_count++))
+      failed_modules+=("$module_name")
+    fi
+  done
+
+  # Summary
+  echo
+  if [[ $updated_count -gt 0 ]]; then
+    _mt_info "✓ Updated $updated_count module(s)"
+  fi
+
+  if [[ $failed_count -gt 0 ]]; then
+    _mt_warn "Failed to update $failed_count module(s):"
+    for failed_module in "${failed_modules[@]}"; do
+      _mt_warn "  - $failed_module"
+    done
+    return 1
+  fi
+
+  return 0
+}
+
 # Main module command dispatcher
 _mt_module() {
   local subcommand="${1:-}"
@@ -243,6 +385,9 @@ _mt_module() {
     edit)
       _mt_module_edit "$@"
       ;;
+    update)
+      _mt_module_update "$@"
+      ;;
     -h|--help|"")
       cat <<EOF
 Usage: mt module <command> [options]
@@ -254,12 +399,15 @@ Commands:
   add <module>        Add module to working set (clone if needed)
   remove <module>     Remove module from working set
   edit <module>       Open module in editor
+  update [MODULE...]  Update module(s) from git remote
 
 Examples:
   mt module list
   mt module add owner/repo
   mt module add https://github.com/owner/repo.git
   mt module remove metool-packages
+  mt module update metool-packages
+  mt module update --all
 
 EOF
       return 0
