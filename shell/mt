@@ -158,6 +158,7 @@ mt() {
       echo "    add MODULE           Add module to working set"
       echo "    remove MODULE        Remove module from working set"
       echo "    edit MODULE          Edit module"
+      echo "    update [MODULE...]   Update module(s) from git remote"
       echo "  package <subcommand>   Package management"
       echo "    list                 List packages in working set"
       echo "    add PKG              Add package to working set"
