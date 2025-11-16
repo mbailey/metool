@@ -378,9 +378,6 @@ _mt_sync_shared_repo() {
   
   # Check if repository exists in canonical location
   if [[ ! -d "$git_repo_path/.git" ]]; then
-    _mt_info "Cloning: $git_repo_url"
-    _mt_info "To: $git_repo_path"
-    
     # Ensure parent directory exists
     command mkdir -p "$(dirname "$git_repo_path")" || {
       _mt_error "Failed to create directory: $(dirname "$git_repo_path")"
@@ -625,8 +622,8 @@ _mt_sync_process_repos() {
     
     for repo_entry in "${repos_to_clone[@]}"; do
       IFS=$'\t' read -r repo strategy target <<< "$repo_entry"
-      # Don't print here - _mt_sync_shared_repo prints detailed info
-      
+      _mt_info "Cloning: $repo -> $target"
+
       local status
       # Use shared repository strategy
       local sync_output
