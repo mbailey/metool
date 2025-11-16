@@ -1,2 +1,4 @@
 alias m=mt
 alias mr='mt reload'
+alias mtp='cd ~/.metool/packages'
+alias mtm='cd ~/.metool/modules'
