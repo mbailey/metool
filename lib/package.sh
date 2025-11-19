@@ -288,20 +288,12 @@ _mt_package_edit() {
   "$editor" "$target"
 }
 
-# Install package from working set
-_mt_package_install() {
+# Install single package from working set (internal function)
+_mt_package_install_single() {
   local package_name="$1"
-  shift || true
-
-  # Validate input
-  if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package install <package> [options]"
-    _mt_info "Options:"
-    _mt_info "  --no-bin      Skip installing bin/ directory"
-    _mt_info "  --no-config   Skip installing config/ directory"
-    _mt_info "  --no-shell    Skip installing shell/ directory"
-    return 1
-  fi
+  local skip_bin="$2"
+  local skip_config="$3"
+  local skip_shell="$4"
 
   # Check if package is in working set
   if ! _mt_package_in_working_set "$package_name"; then
@@ -322,10 +314,82 @@ _mt_package_install() {
     return 1
   fi
 
-  # Parse exclusion options
+  if [[ "$skip_bin" == "true" ]] || [[ "$skip_config" == "true" ]] || [[ "$skip_shell" == "true" ]]; then
+    # With exclusions, we need to handle each component separately
+    local installed_components=()
+    local skipped_components=()
+
+    # Install bin/ unless skipped
+    if [[ "$skip_bin" != "true" ]] && [[ -d "$package_path/bin" ]]; then
+      if command stow --dir="$package_path" --target="${MT_PKG_DIR}/bin" bin 2>&1; then
+        installed_components+=("bin")
+      else
+        _mt_error "Failed to install bin component"
+        return 1
+      fi
+    elif [[ "$skip_bin" == "true" ]] && [[ -d "$package_path/bin" ]]; then
+      skipped_components+=("bin")
+    fi
+
+    # Install config/ unless skipped
+    if [[ "$skip_config" != "true" ]] && [[ -d "$package_path/config" ]]; then
+      mkdir -p "${MT_PKG_DIR}/config/${package_name}"
+      if command stow --dir="$package_path" --target="${MT_PKG_DIR}/config/${package_name}" config 2>&1; then
+        if command stow --dir="${MT_PKG_DIR}/config" --target="${HOME}" --dotfiles "${package_name}" 2>&1; then
+          installed_components+=("config")
+        else
+          _mt_error "Failed to link config to home"
+          return 1
+        fi
+      else
+        _mt_error "Failed to install config component"
+        return 1
+      fi
+    elif [[ "$skip_config" == "true" ]] && [[ -d "$package_path/config" ]]; then
+      skipped_components+=("config")
+    fi
+
+    # Install shell/ unless skipped
+    if [[ "$skip_shell" != "true" ]] && [[ -d "$package_path/shell" ]]; then
+      mkdir -p "${MT_PKG_DIR}/shell/${package_name}"
+      if command stow --dir="$package_path" --target="${MT_PKG_DIR}/shell/${package_name}" shell 2>&1; then
+        installed_components+=("shell")
+      else
+        _mt_error "Failed to install shell component"
+        return 1
+      fi
+    elif [[ "$skip_shell" == "true" ]] && [[ -d "$package_path/shell" ]]; then
+      skipped_components+=("shell")
+    fi
+
+    if [[ ${#installed_components[@]} -gt 0 ]] || [[ ${#skipped_components[@]} -eq 0 ]]; then
+      # Show success if components installed OR nothing skipped (shouldn't happen but safety)
+      _mt_info "✓ Installed: $package_name"
+    fi
+    if [[ ${#skipped_components[@]} -gt 0 ]]; then
+      _mt_info "  Skipped: ${skipped_components[*]}"
+    fi
+
+  else
+    # No exclusions - use standard stow function
+    _mt_stow "$package_path" || return 1
+  fi
+
+  # Check if package has services
+  if _mt_package_has_services "$package_name"; then
+    _mt_info "→ Includes services: mt package service $package_name <start|stop|status|enable|disable>"
+  fi
+
+  return 0
+}
+
+# Install package(s) from working set (supports multiple packages)
+_mt_package_install() {
+  # Parse options and package names
   local skip_bin=false
   local skip_config=false
   local skip_shell=false
+  local -a package_names=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -341,104 +405,71 @@ _mt_package_install() {
         skip_shell=true
         shift
         ;;
-      *)
+      -*)
         _mt_error "Unknown option: $1"
         return 1
+        ;;
+      *)
+        package_names+=("$1")
+        shift
         ;;
     esac
   done
 
-  # Build stow options based on exclusions
-  local -a stow_opts=()
-
-  if $skip_bin || $skip_config || $skip_shell; then
-    # With exclusions, we need to handle each component separately
-    _mt_info "Installing package with exclusions: $package_name"
-
-    local installed_components=()
-    local skipped_components=()
-
-    # Install bin/ unless skipped
-    if ! $skip_bin && [[ -d "$package_path/bin" ]]; then
-      if command stow --dir="$package_path" --target="${MT_PKG_DIR}/bin" bin 2>&1; then
-        installed_components+=("bin")
-      else
-        _mt_error "Failed to install bin component"
-        return 1
-      fi
-    elif $skip_bin && [[ -d "$package_path/bin" ]]; then
-      skipped_components+=("bin")
-    fi
-
-    # Install config/ unless skipped
-    if ! $skip_config && [[ -d "$package_path/config" ]]; then
-      mkdir -p "${MT_PKG_DIR}/config/${package_name}"
-      if command stow --dir="$package_path" --target="${MT_PKG_DIR}/config/${package_name}" config 2>&1; then
-        if command stow --dir="${MT_PKG_DIR}/config" --target="${HOME}" --dotfiles "${package_name}" 2>&1; then
-          installed_components+=("config")
-        else
-          _mt_error "Failed to link config to home"
-          return 1
-        fi
-      else
-        _mt_error "Failed to install config component"
-        return 1
-      fi
-    elif $skip_config && [[ -d "$package_path/config" ]]; then
-      skipped_components+=("config")
-    fi
-
-    # Install shell/ unless skipped
-    if ! $skip_shell && [[ -d "$package_path/shell" ]]; then
-      mkdir -p "${MT_PKG_DIR}/shell/${package_name}"
-      if command stow --dir="$package_path" --target="${MT_PKG_DIR}/shell/${package_name}" shell 2>&1; then
-        installed_components+=("shell")
-      else
-        _mt_error "Failed to install shell component"
-        return 1
-      fi
-    elif $skip_shell && [[ -d "$package_path/shell" ]]; then
-      skipped_components+=("shell")
-    fi
-
-    if [[ ${#installed_components[@]} -gt 0 ]]; then
-      _mt_info "✓ Installed: ${installed_components[*]}"
-    fi
-    if [[ ${#skipped_components[@]} -gt 0 ]]; then
-      _mt_info "Skipped: ${skipped_components[*]}"
-    fi
-
-  else
-    # No exclusions - use standard stow function
-    _mt_info "Installing package: $package_name"
-    _mt_stow "$package_path"
-  fi
-
-  _mt_info "✓ Package installed: $package_name"
-
-  # Check if package has services
-  if _mt_package_has_services "$package_name"; then
-    _mt_info "This package includes system services"
-    _mt_info "Manage with: mt package service $package_name <start|stop|status|enable|disable>"
-  fi
-
-  return 0
-}
-
-# Uninstall package (remove stow symlinks)
-_mt_package_uninstall() {
-  local package_name="$1"
-  shift || true
-
   # Validate input
-  if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package uninstall <package> [options]"
+  if [[ ${#package_names[@]} -eq 0 ]]; then
+    _mt_error "Usage: mt package install <package> [<package>...] [options]"
     _mt_info "Options:"
-    _mt_info "  --no-bin      Skip uninstalling bin/ directory"
-    _mt_info "  --no-config   Skip uninstalling config/ directory"
-    _mt_info "  --no-shell    Skip uninstalling shell/ directory"
+    _mt_info "  --no-bin      Skip installing bin/ directory"
+    _mt_info "  --no-config   Skip installing config/ directory"
+    _mt_info "  --no-shell    Skip installing shell/ directory"
+    _mt_info ""
+    _mt_info "Examples:"
+    _mt_info "  mt package install git-tools"
+    _mt_info "  mt package install agents tmux vim-config"
+    _mt_info "  mt package install --no-config tool1 tool2"
     return 1
   fi
+
+  local success_count=0
+  local fail_count=0
+  local -a failed_packages=()
+
+  # Install each package
+  for package_name in "${package_names[@]}"; do
+    if _mt_package_install_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell"; then
+      ((success_count++))
+    else
+      ((fail_count++))
+      failed_packages+=("$package_name")
+    fi
+  done
+
+  # Summary for multiple packages
+  if [[ ${#package_names[@]} -gt 1 ]]; then
+    echo
+    _mt_info "Summary: $success_count installed, $fail_count failed"
+
+    # Show failed packages if any
+    if [[ $fail_count -gt 0 ]]; then
+      echo
+      _mt_error "Failed packages:"
+      for pkg in "${failed_packages[@]}"; do
+        echo "  - $pkg"
+      done
+    fi
+  fi
+
+  # Return success if at least one package was installed
+  [[ $success_count -gt 0 ]]
+}
+
+# Uninstall single package (remove stow symlinks) - internal function
+_mt_package_uninstall_single() {
+  local package_name="$1"
+  local skip_bin="$2"
+  local skip_config="$3"
+  local skip_shell="$4"
 
   # Check if package is in working set
   if ! _mt_package_in_working_set "$package_name"; then
@@ -462,10 +493,71 @@ _mt_package_uninstall() {
     return 0
   fi
 
-  # Parse exclusion options
+  local uninstalled_components=()
+  local skipped_components=()
+
+  # Uninstall bin/ unless skipped
+  if [[ "$skip_bin" != "true" ]] && [[ -d "$package_path/bin" ]]; then
+    if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/bin" bin 2>&1; then
+      uninstalled_components+=("bin")
+    else
+      _mt_warning "Failed to uninstall bin component (may not have been installed)"
+    fi
+  elif [[ "$skip_bin" == "true" ]] && [[ -d "$package_path/bin" ]]; then
+    skipped_components+=("bin")
+  fi
+
+  # Uninstall config/ unless skipped
+  if [[ "$skip_config" != "true" ]] && [[ -d "$package_path/config" ]]; then
+    # First unstow from home
+    if command stow -D --dir="${MT_PKG_DIR}/config" --target="${HOME}" --dotfiles "${package_name}" 2>&1; then
+      # Then unstow from metool config dir
+      if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/config/${package_name}" config 2>&1; then
+        uninstalled_components+=("config")
+        # Clean up empty metool config directory
+        rmdir "${MT_PKG_DIR}/config/${package_name}" 2>/dev/null || true
+      else
+        _mt_warning "Failed to uninstall config component from metool"
+      fi
+    else
+      _mt_warning "Failed to uninstall config component from home"
+    fi
+  elif [[ "$skip_config" == "true" ]] && [[ -d "$package_path/config" ]]; then
+    skipped_components+=("config")
+  fi
+
+  # Uninstall shell/ unless skipped
+  if [[ "$skip_shell" != "true" ]] && [[ -d "$package_path/shell" ]]; then
+    if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/shell/${package_name}" shell 2>&1; then
+      uninstalled_components+=("shell")
+      # Clean up empty metool shell directory
+      rmdir "${MT_PKG_DIR}/shell/${package_name}" 2>/dev/null || true
+    else
+      _mt_warning "Failed to uninstall shell component"
+    fi
+  elif [[ "$skip_shell" == "true" ]] && [[ -d "$package_path/shell" ]]; then
+    skipped_components+=("shell")
+  fi
+
+  if [[ ${#uninstalled_components[@]} -gt 0 ]] || [[ ${#skipped_components[@]} -eq 0 ]]; then
+    # Show success message if components were uninstalled OR if nothing was skipped (standard case)
+    _mt_info "✓ Uninstalled: $package_name"
+  fi
+
+  if [[ ${#skipped_components[@]} -gt 0 ]]; then
+    _mt_info "  Skipped: ${skipped_components[*]}"
+  fi
+
+  return 0
+}
+
+# Uninstall package(s) from working set (supports multiple packages)
+_mt_package_uninstall() {
+  # Parse options and package names
   local skip_bin=false
   local skip_config=false
   local skip_shell=false
+  local -a package_names=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -481,70 +573,63 @@ _mt_package_uninstall() {
         skip_shell=true
         shift
         ;;
-      *)
+      -*)
         _mt_error "Unknown option: $1"
         return 1
+        ;;
+      *)
+        package_names+=("$1")
+        shift
         ;;
     esac
   done
 
-  _mt_info "Uninstalling package: $package_name"
+  # Validate input
+  if [[ ${#package_names[@]} -eq 0 ]]; then
+    _mt_error "Usage: mt package uninstall <package> [<package>...] [options]"
+    _mt_info "Options:"
+    _mt_info "  --no-bin      Skip uninstalling bin/ directory"
+    _mt_info "  --no-config   Skip uninstalling config/ directory"
+    _mt_info "  --no-shell    Skip uninstalling shell/ directory"
+    _mt_info ""
+    _mt_info "Examples:"
+    _mt_info "  mt package uninstall git-tools"
+    _mt_info "  mt package uninstall agents tmux vim-config"
+    _mt_info "  mt package uninstall --no-config tool1 tool2"
+    return 1
+  fi
 
-  local uninstalled_components=()
-  local skipped_components=()
+  local success_count=0
+  local fail_count=0
+  local -a failed_packages=()
 
-  # Uninstall bin/ unless skipped
-  if ! $skip_bin && [[ -d "$package_path/bin" ]]; then
-    if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/bin" bin 2>&1; then
-      uninstalled_components+=("bin")
+  # Uninstall each package
+  for package_name in "${package_names[@]}"; do
+    if _mt_package_uninstall_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell"; then
+      ((success_count++))
     else
-      _mt_warning "Failed to uninstall bin component (may not have been installed)"
+      ((fail_count++))
+      failed_packages+=("$package_name")
     fi
-  elif $skip_bin && [[ -d "$package_path/bin" ]]; then
-    skipped_components+=("bin")
-  fi
+  done
 
-  # Uninstall config/ unless skipped
-  if ! $skip_config && [[ -d "$package_path/config" ]]; then
-    # First unstow from home
-    if command stow -D --dir="${MT_PKG_DIR}/config" --target="${HOME}" --dotfiles "${package_name}" 2>&1; then
-      # Then unstow from metool config dir
-      if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/config/${package_name}" config 2>&1; then
-        uninstalled_components+=("config")
-        # Clean up empty metool config directory
-        rmdir "${MT_PKG_DIR}/config/${package_name}" 2>/dev/null || true
-      else
-        _mt_warning "Failed to uninstall config component from metool"
-      fi
-    else
-      _mt_warning "Failed to uninstall config component from home"
+  # Summary for multiple packages
+  if [[ ${#package_names[@]} -gt 1 ]]; then
+    echo
+    _mt_info "Summary: $success_count uninstalled, $fail_count failed"
+
+    # Show failed packages if any
+    if [[ $fail_count -gt 0 ]]; then
+      echo
+      _mt_error "Failed packages:"
+      for pkg in "${failed_packages[@]}"; do
+        echo "  - $pkg"
+      done
     fi
-  elif $skip_config && [[ -d "$package_path/config" ]]; then
-    skipped_components+=("config")
   fi
 
-  # Uninstall shell/ unless skipped
-  if ! $skip_shell && [[ -d "$package_path/shell" ]]; then
-    if command stow -D --dir="$package_path" --target="${MT_PKG_DIR}/shell/${package_name}" shell 2>&1; then
-      uninstalled_components+=("shell")
-      # Clean up empty metool shell directory
-      rmdir "${MT_PKG_DIR}/shell/${package_name}" 2>/dev/null || true
-    else
-      _mt_warning "Failed to uninstall shell component"
-    fi
-  elif $skip_shell && [[ -d "$package_path/shell" ]]; then
-    skipped_components+=("shell")
-  fi
-
-  if [[ ${#uninstalled_components[@]} -gt 0 ]]; then
-    _mt_info "✓ Uninstalled: ${uninstalled_components[*]}"
-  fi
-  if [[ ${#skipped_components[@]} -gt 0 ]]; then
-    _mt_info "Skipped: ${skipped_components[*]}"
-  fi
-
-  _mt_info "✓ Package uninstalled: $package_name"
-  return 0
+  # Return success if at least one package was uninstalled
+  [[ $success_count -gt 0 ]]
 }
 
 # Main package command dispatcher
@@ -584,14 +669,14 @@ Usage: mt package <command> [options]
 Manage metool packages in working set.
 
 Commands:
-  list                       List packages in working set
-  add <mod>/<pkg>            Add package to working set
-  remove <package>           Remove package from working set
-  edit <package>             Open package in editor
-  install <package> [opts]   Install package using stow
-  uninstall <package> [opts] Uninstall package (remove symlinks)
-  service <cmd> <package>    Manage package services (systemd/launchd)
-  new NAME [PATH]            Create a new package from template
+  list                           List packages in working set
+  add <mod>/<pkg>...             Add package(s) to working set
+  remove <package>               Remove package from working set
+  edit <package>                 Open package in editor
+  install <package>... [opts]    Install package(s) using stow
+  uninstall <package>... [opts]  Uninstall package(s) (remove symlinks)
+  service <cmd> <package>        Manage package services (systemd/launchd)
+  new NAME [PATH]                Create a new package from template
 
 Install/Uninstall Options:
   --no-bin      Skip bin/ directory
@@ -608,10 +693,11 @@ Examples:
   mt package add dev/tool1 dev/tool2        # Add multiple packages
   mt package add dev/*                      # Add all packages from module
   mt package install git-tools
+  mt package install agents tmux vim-config # Install multiple packages
   mt package install vim-config --no-bin --no-shell
+  mt package uninstall agents tmux          # Uninstall multiple packages
   mt package service start prometheus
   mt package service logs prometheus -f
-  mt package uninstall git-tools
   mt package remove git-tools
   mt package edit git-tools
 

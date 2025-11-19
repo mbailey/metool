@@ -21,6 +21,7 @@ setup() {
   source "${MT_ROOT}/lib/functions.sh"
   source "${MT_ROOT}/lib/colors.sh"
   source "${MT_ROOT}/lib/working-set.sh"
+  source "${MT_ROOT}/lib/stow.sh"
   source "${MT_ROOT}/lib/package.sh"
 
   # Require stow for install/uninstall tests
@@ -304,6 +305,70 @@ teardown() {
   [[ "$output" =~ "Skipped: shell" ]]
 }
 
+@test "package: install accepts multiple package names" {
+  # Create first package
+  local package1_dir="${TEST_DIR}/package1"
+  mkdir -p "${package1_dir}/bin"
+  echo "#!/bin/bash" > "${package1_dir}/bin/cmd1"
+  chmod +x "${package1_dir}/bin/cmd1"
+  ln -s "${package1_dir}" "${MT_PACKAGES_DIR}/package1"
+
+  # Create second package
+  local package2_dir="${TEST_DIR}/package2"
+  mkdir -p "${package2_dir}/bin"
+  echo "#!/bin/bash" > "${package2_dir}/bin/cmd2"
+  chmod +x "${package2_dir}/bin/cmd2"
+  ln -s "${package2_dir}" "${MT_PACKAGES_DIR}/package2"
+
+  run _mt_package_install "package1" "package2"
+  [ $status -eq 0 ]
+  [[ "$output" =~ "package1" ]]
+  [[ "$output" =~ "package2" ]]
+  [[ "$output" =~ "Summary: 2 installed, 0 failed" ]]
+}
+
+@test "package: install handles mixed success and failure with multiple packages" {
+  # Create valid package
+  local package1_dir="${TEST_DIR}/package1"
+  mkdir -p "${package1_dir}/bin"
+  ln -s "${package1_dir}" "${MT_PACKAGES_DIR}/package1"
+
+  # Don't create package2 (will fail)
+
+  run _mt_package_install "package1" "nonexistent"
+  [ $status -eq 0 ]  # Returns 0 if at least one succeeds
+  [[ "$output" =~ "package1" ]]
+  [[ "$output" =~ "not found in working set: nonexistent" ]]
+  [[ "$output" =~ "Summary: 1 installed, 1 failed" ]]
+  [[ "$output" =~ "Failed packages:" ]]
+  [[ "$output" =~ "- nonexistent" ]]
+}
+
+@test "package: install supports options with multiple packages" {
+  # Create target directories
+  mkdir -p "${MT_PKG_DIR}/bin"
+  mkdir -p "${MT_PKG_DIR}/config"
+  mkdir -p "${MT_PKG_DIR}/shell"
+
+  # Create packages
+  local package1_dir="${TEST_DIR}/package1"
+  mkdir -p "${package1_dir}/bin" "${package1_dir}/config"
+  echo "#!/bin/bash" > "${package1_dir}/bin/cmd1"
+  chmod +x "${package1_dir}/bin/cmd1"
+  ln -s "${package1_dir}" "${MT_PACKAGES_DIR}/package1"
+
+  local package2_dir="${TEST_DIR}/package2"
+  mkdir -p "${package2_dir}/bin" "${package2_dir}/config"
+  echo "#!/bin/bash" > "${package2_dir}/bin/cmd2"
+  chmod +x "${package2_dir}/bin/cmd2"
+  ln -s "${package2_dir}" "${MT_PACKAGES_DIR}/package2"
+
+  run _mt_package_install --no-config "package1" "package2"
+  [ $status -eq 0 ]
+  [[ "$output" =~ "Skipped: config" ]]
+  [[ "$output" =~ "Summary: 2 installed, 0 failed" ]]
+}
+
 # mt package uninstall tests
 
 @test "package: uninstall requires package name" {
@@ -337,4 +402,37 @@ teardown() {
 
   run _mt_package_uninstall "test-package" --no-bin
   [ $status -eq 0 ]
+}
+
+@test "package: uninstall accepts multiple package names" {
+  # Create first package
+  local package1_dir="${TEST_DIR}/package1"
+  mkdir -p "${package1_dir}/bin"
+  ln -s "${package1_dir}" "${MT_PACKAGES_DIR}/package1"
+
+  # Create second package
+  local package2_dir="${TEST_DIR}/package2"
+  mkdir -p "${package2_dir}/bin"
+  ln -s "${package2_dir}" "${MT_PACKAGES_DIR}/package2"
+
+  run _mt_package_uninstall "package1" "package2"
+  [ $status -eq 0 ]
+  [[ "$output" =~ "package1" ]]
+  [[ "$output" =~ "package2" ]]
+  [[ "$output" =~ "Summary: 2 uninstalled, 0 failed" ]]
+}
+
+@test "package: uninstall supports options with multiple packages" {
+  # Create packages
+  local package1_dir="${TEST_DIR}/package1"
+  mkdir -p "${package1_dir}/bin"
+  ln -s "${package1_dir}" "${MT_PACKAGES_DIR}/package1"
+
+  local package2_dir="${TEST_DIR}/package2"
+  mkdir -p "${package2_dir}/bin"
+  ln -s "${package2_dir}" "${MT_PACKAGES_DIR}/package2"
+
+  run _mt_package_uninstall --no-bin "package1" "package2"
+  [ $status -eq 0 ]
+  [[ "$output" =~ "Summary: 2 uninstalled, 0 failed" ]]
 }
