@@ -156,12 +156,14 @@ _mt_check_deps() {
     echo "     Install: brew install stow (macOS) or apt install stow (Linux)" >&2
     echo "     Required: Version 2.4.0+ for proper dot- directory support" >&2
   else
-    # Check stow version
-    local stow_version=$(stow --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    # Check stow version - handle both X.Y.Z and X.Y formats
+    local stow_version=$(stow --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)
     if [[ -n "$stow_version" ]]; then
-      # Parse version components
+      # Parse version components, treating missing patch as 0
       local major=$(echo "$stow_version" | cut -d. -f1)
       local minor=$(echo "$stow_version" | cut -d. -f2)
+      local patch=$(echo "$stow_version" | cut -d. -f3)
+      patch=${patch:-0}  # Default to 0 if no patch version
 
       # Check if version is 2.4.0 or later
       if [[ "$major" -gt 2 ]] || ([[ "$major" -eq 2 ]] && [[ "$minor" -ge 4 ]]); then

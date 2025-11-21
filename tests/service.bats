@@ -77,6 +77,10 @@ teardown() {
 }
 
 @test "service: get_files finds launchd services" {
+  if [[ "$OSTYPE" != "darwin"* ]]; then
+    skip "launchd only available on macOS"
+  fi
+
   # Create package with launchd plist
   local package_dir="${TEST_DIR}/test-package"
   mkdir -p "${package_dir}/config/macos"
@@ -141,6 +145,10 @@ teardown() {
 }
 
 @test "service: list shows launchd services" {
+  if [[ "$OSTYPE" != "darwin"* ]]; then
+    skip "launchd only available on macOS"
+  fi
+
   # Create package with launchd plist
   local package_dir="${TEST_DIR}/test-package"
   mkdir -p "${package_dir}/config/macos"
