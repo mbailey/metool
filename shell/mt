@@ -8,13 +8,20 @@ mt() {
   fi
 
   # Get path to script and root of project
-  command -v realpath &>/dev/null || {
-    echo "Error: 'realpath' is required but not found. Please install 'coreutils' (e.g. 'brew install coreutils' on macOS)." >&2
-    return 1
-  }
-  SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
-  SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
-  export MT_ROOT="$(dirname -- "${SCRIPT_DIR}")"
+  # MT_ROOT should be set by bin/mt, but calculate it if not (e.g., when sourced directly)
+  if [[ -z "${MT_ROOT:-}" ]]; then
+    command -v realpath &>/dev/null || {
+      echo "Error: 'realpath' is required but not found. Please install 'coreutils' (e.g. 'brew install coreutils' on macOS)." >&2
+      return 1
+    }
+    SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+    SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
+    export MT_ROOT="$(dirname -- "${SCRIPT_DIR}")"
+  else
+    # MT_ROOT already set (by bin/mt), still set SCRIPT_PATH for debugging
+    SCRIPT_PATH="${MT_ROOT}/shell/mt"
+    SCRIPT_DIR="${MT_ROOT}/shell"
+  fi
 
   # Load core functions
   source "${MT_ROOT}/lib/functions.sh" # Must be loaded first (I think)

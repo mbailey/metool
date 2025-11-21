@@ -31,13 +31,16 @@ if [[ -z "$MTBIN_BASH_CHECKED" ]]; then
     check_bash_version "$@"
 fi
 
-# Find metool installation
+# Find metool installation and export MT_ROOT before sourcing
+# This prevents shell/mt from calculating MT_ROOT incorrectly when sourced from snapshots
 # First check if already installed in home
 if [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
+    export MT_ROOT="$(dirname "$(dirname "$HOME/.metool/shell/metool/mt")")"
     source "$HOME/.metool/shell/metool/mt"
 # Then check if we're in the metool repository
 elif [[ -f "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/shell/mt" ]]; then
-    source "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/shell/mt"
+    export MT_ROOT="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+    source "$MT_ROOT/shell/mt"
 else
     echo "Error: metool not found" >&2
     echo "Please run the installer first: ./install.sh" >&2
