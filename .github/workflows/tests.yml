@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [ master ]
+  push:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        # Install bats-core for testing
+        sudo apt-get update
+        sudo apt-get install -y bats
+
+        # Install GNU stow (required by metool)
+        sudo apt-get install -y stow
+
+        # Install realpath (should be available on Ubuntu, but ensure it's there)
+        sudo apt-get install -y coreutils
+
+    - name: Run tests
+      run: |
+        bats tests/*.bats
+      env:
+        MT_ROOT: ${{ github.workspace }}
+
+    - name: Test summary
+      if: always()
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "✅ All tests passed!"
+        else
+          echo "❌ Some tests failed"
+          exit 1
+        fi
