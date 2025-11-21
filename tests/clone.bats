@@ -42,6 +42,13 @@ setup() {
   _mt_warning() {
     echo "WARNING: $*"
   }
+
+  _mt_debug() {
+    # Only output in debug mode (usually silent in tests)
+    if [[ "${MT_DEBUG:-false}" == "true" ]]; then
+      echo "DEBUG: $*"
+    fi
+  }
   
   # Mock _mt_create_relative_symlink for testing
   _mt_create_relative_symlink() {
@@ -87,7 +94,17 @@ setup() {
         _mt_warning "Expected target: ${target_path}"
       fi
     elif [[ -e "$repo_name" ]]; then
-      _mt_warning "Cannot create symlink: ${repo_name} already exists and is not a symlink"
+      # Check if the existing path and target are the same
+      local existing_path target_real
+      existing_path="$(realpath "$repo_name" 2>/dev/null || echo "$repo_name")"
+      target_real="$(realpath "$target_path" 2>/dev/null || echo "$target_path")"
+
+      if [[ "$existing_path" == "$target_real" ]]; then
+        # Source and destination are identical, no symlink needed
+        _mt_debug "Skipping symlink creation: $repo_name and $target_path are the same"
+      else
+        _mt_warning "Cannot create symlink: ${repo_name} already exists and is not a symlink"
+      fi
     else
       _mt_info "Creating symlink: ${repo_name} -> ${target_path}"
       _mt_create_relative_symlink "${target_path}" "${repo_name}"
@@ -343,12 +360,41 @@ EOL
 @test "mt clone doesn't create symlink when clone fails" {
   # Set repo URL to trigger the failure case in our mock
   TEST_REPO_NAME="non-existent-repo"
-  
+
   run _mt_clone "${TEST_REPO_NAME}"
-  
+
   [ "$status" -eq 1 ]
   [[ "$output" =~ "Failed to clone repository" ]]
-  
+
   # Check that no symlink was created
   [ ! -L "${WORK_DIR}/${TEST_REPO_NAME}" ]
+}
+
+@test "mt clone skips symlink when file and target are identical" {
+  local target_dir="${MT_GIT_BASE_DIR}/github.com/test-user/${TEST_REPO_NAME}"
+
+  # Create the target directory structure
+  mkdir -p "${target_dir}/.git"
+
+  # Add origin remote to git config
+  cat > "${target_dir}/.git/config" << EOL
+[core]
+	repositoryformatversion = 0
+	filemode = true
+[remote "origin"]
+	url = https://github.com/test-user/${TEST_REPO_NAME}.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+EOL
+
+  # Change to the target directory parent (where we'd normally create the symlink)
+  # In this case, we're already in the directory where the repo exists
+  cd "${target_dir}"
+
+  run _mt_clone "${TEST_REPO_NAME}"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Repository already exists" ]]
+  # Should NOT show the warning about symlink creation
+  [[ ! "$output" =~ "Cannot create symlink" ]]
+  # With debug mode, we'd see the skip message, but without it, no output about symlink
 }

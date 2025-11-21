@@ -580,7 +580,17 @@ _mt_create_symlink() {
         fi
     # Check if a non-symlink file/directory exists with the same name
     elif [[ -e "$repo_name" ]]; then
-        _mt_warning "Cannot create symlink: ${repo_name} already exists and is not a symlink"
+        # Check if the existing path and target are the same
+        local existing_path target_real
+        existing_path="$(realpath "$repo_name" 2>/dev/null || echo "$repo_name")"
+        target_real="$(realpath "$target_path" 2>/dev/null || echo "$target_path")"
+
+        if [[ "$existing_path" == "$target_real" ]]; then
+            # Source and destination are identical, no symlink needed
+            _mt_debug "Skipping symlink creation: $repo_name and $target_path are the same"
+        else
+            _mt_warning "Cannot create symlink: ${repo_name} already exists and is not a symlink"
+        fi
     else
         _mt_info "Creating symlink: ${repo_name} -> ${target_path}"
         _mt_create_relative_symlink "${target_path}" "${repo_name}"
