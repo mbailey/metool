@@ -25,15 +25,16 @@ _mt_module_list() {
     [[ -L "$module_link" ]] || continue
     local module_name=$(basename "$module_link")
     local target=$(readlink -f "$module_link" 2>/dev/null)
-    local status="✓"
 
     # Check if symlink is broken
     if [[ -z "$target" ]] || [[ ! -d "$target" ]]; then
-      status="✗"
       target="${target:-broken}"
     fi
 
-    modules+=("${status}\t${module_name}\t${target}")
+    # Replace $HOME with ~
+    target="${target/#$HOME/\~}"
+
+    modules+=("${module_name}\t${target}")
     ((module_count++))
   done < <(find "${MT_MODULES_DIR}" -maxdepth 1 -type l 2>/dev/null | sort)
 
@@ -43,17 +44,20 @@ _mt_module_list() {
     return 0
   fi
 
-  # Output header
-  printf "%-3s %-30s %s\n" "" "MODULE" "PATH"
-  printf "%-3s %-30s %s\n" "---" "------" "----"
-
-  # Output modules
-  for module_info in "${modules[@]}"; do
-    echo -e "$module_info"
-  done | column -t -s $'\t'
-
-  echo
-  _mt_info "Total modules: $module_count"
+  # Output header and modules
+  # If stdout is a terminal, columnize for readability
+  if [[ -t 1 ]]; then
+    printf "%s\t%s\n" "MODULE" "PATH"
+    for module_info in "${modules[@]}"; do
+      echo -e "$module_info"
+    done | column -t -s $'\t'
+  else
+    # TSV output for piping/redirection
+    printf "%s\t%s\n" "MODULE" "PATH"
+    for module_info in "${modules[@]}"; do
+      echo -e "$module_info"
+    done
+  fi
 }
 
 # Add module to working set (clone if needed)

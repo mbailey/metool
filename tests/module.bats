@@ -49,7 +49,8 @@ teardown() {
   run _mt_module_list
   [ $status -eq 0 ]
   [[ "$output" =~ "test-module" ]]
-  [[ "$output" =~ "✓" ]]
+  [[ "$output" =~ "MODULE" ]]
+  [[ "$output" =~ "PATH" ]]
 }
 
 @test "module: list shows broken module symlink" {
@@ -59,10 +60,10 @@ teardown() {
   run _mt_module_list
   [ $status -eq 0 ]
   [[ "$output" =~ "broken-module" ]]
-  [[ "$output" =~ "✗" ]]
+  [[ "$output" =~ "broken" ]]
 }
 
-@test "module: list counts modules correctly" {
+@test "module: list shows all modules" {
   # Create multiple modules
   for i in {1..3}; do
     local module_dir="${TEST_DIR}/module-${i}"
@@ -72,7 +73,9 @@ teardown() {
 
   run _mt_module_list
   [ $status -eq 0 ]
-  [[ "$output" =~ "Total modules: 3" ]]
+  [[ "$output" =~ "module-1" ]]
+  [[ "$output" =~ "module-2" ]]
+  [[ "$output" =~ "module-3" ]]
 }
 
 # mt module add tests
