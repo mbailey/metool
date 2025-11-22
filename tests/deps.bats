@@ -55,10 +55,11 @@ setup() {
   if ! command -v stow &>/dev/null; then
     skip "stow not available for testing"
   fi
-  
+
   run _mt_check_deps
-  
-  [[ "$output" =~ "✅ stow: Found at" ]]
+
+  # Should detect stow, either with success (2.4.0+) or version warning (older)
+  [[ "$output" =~ "stow:" ]]
 }
 
 @test "_mt_check_deps detects bash-completion" {
@@ -77,6 +78,18 @@ setup() {
 }
 
 @test "_mt_check_deps returns success when all required deps found" {
+  # Skip this test on systems with stow < 2.4.0 since it will fail version check
+  if command -v stow &>/dev/null; then
+    local stow_version=$(stow --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)
+    if [[ -n "$stow_version" ]]; then
+      local major=$(echo "$stow_version" | cut -d. -f1)
+      local minor=$(echo "$stow_version" | cut -d. -f2)
+      if ! ([[ "$major" -gt 2 ]] || ([[ "$major" -eq 2 ]] && [[ "$minor" -ge 4 ]])); then
+        skip "stow version $stow_version is too old (need 2.4.0+)"
+      fi
+    fi
+  fi
+
   # Mock command to simulate all deps present
   command() {
     case "$1" in
@@ -89,9 +102,9 @@ setup() {
       *) builtin command "$@" ;;
     esac
   }
-  
+
   run _mt_check_deps
-  
+
   [ "$status" -eq 0 ]
   [[ "$output" =~ "✅ All required dependencies found!" ]]
 }
