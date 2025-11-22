@@ -33,18 +33,25 @@ fi
 
 # Find metool installation and export MT_ROOT before sourcing
 # This prevents shell/mt from calculating MT_ROOT incorrectly when sourced from snapshots
-# First check if already installed in home
-if [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
-    export MT_ROOT="$(dirname "$(dirname "$HOME/.metool/shell/metool/mt")")"
-    source "$HOME/.metool/shell/metool/mt"
-# Then check if we're in the metool repository
-elif [[ -f "$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")/shell/mt" ]]; then
-    export MT_ROOT="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
-    source "$MT_ROOT/shell/mt"
+
+# Check if already installed in home
+if [[ -d "$HOME/.metool" ]] && [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
+    export MT_ROOT="$HOME/.metool"
+    source "$MT_ROOT/shell/metool/mt"
+
+# Check if we're in the metool repository
 else
-    echo "Error: metool not found" >&2
-    echo "Please run the installer first: ./install.sh" >&2
-    exit 1
+    # Calculate potential MT_ROOT from script location
+    potential_root="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+
+    if [[ -f "$potential_root/shell/mt" ]]; then
+        export MT_ROOT="$potential_root"
+        source "$MT_ROOT/shell/mt"
+    else
+        echo "Error: metool not found" >&2
+        echo "Please run the installer first: ./install.sh" >&2
+        exit 1
+    fi
 fi
 
 # Pass all arguments to mt
