@@ -10,6 +10,7 @@ Metool packages are organized collections of related functionality. Each package
 module-name/
 └── package-name/
     ├── README.md        # Package documentation (required)
+    ├── SKILL.md         # Claude Code skill (optional)
     ├── bin/            # Executable scripts
     ├── shell/          # Shell functions and aliases
     ├── config/         # Configuration files
@@ -96,6 +97,46 @@ package-name/
 └── libexec/
     ├── tool-backend   # Internal helper
     └── tool-worker    # Background worker
+```
+
+### SKILL.md (Optional)
+
+Claude Code skill file that makes the package available as a skill in Claude Code:
+
+```markdown
+---
+name: package-name
+description: Brief description of when to use this skill
+---
+
+# Package Name Skill
+
+This skill provides...
+
+## When to Use
+
+Use this skill when...
+
+## Available Tools
+
+- `tool-name` - Description of what the tool does
+```
+
+When a package contains a `SKILL.md` file, `mt package install` automatically creates symlinks:
+
+1. **Stage 1**: Creates symlink from `~/.metool/skills/{package}` to the package directory
+2. **Stage 2**: Creates symlink from `~/.claude/skills/{package}` to `~/.metool/skills/{package}`
+
+This two-stage symlink pattern allows Claude Code to discover the skill while keeping the package as the single source of truth. Claude Code can access all package resources (SKILL.md, docs/, bin/, etc.) through the symlink.
+
+Requirements:
+- Must be named `SKILL.md` (all caps)
+- Must include YAML frontmatter with `name` and `description`
+- Should follow Claude Code skill conventions
+
+To skip skill installation:
+```bash
+mt package install --no-skill package-name
 ```
 
 ## Package README
