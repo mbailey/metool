@@ -294,6 +294,7 @@ _mt_package_install_single() {
   local skip_bin="$2"
   local skip_config="$3"
   local skip_shell="$4"
+  local skip_skill="$5"
 
   # Check if package is in working set
   if ! _mt_package_in_working_set "$package_name"; then
@@ -314,7 +315,7 @@ _mt_package_install_single() {
     return 1
   fi
 
-  if [[ "$skip_bin" == "true" ]] || [[ "$skip_config" == "true" ]] || [[ "$skip_shell" == "true" ]]; then
+  if [[ "$skip_bin" == "true" ]] || [[ "$skip_config" == "true" ]] || [[ "$skip_shell" == "true" ]] || [[ "$skip_skill" == "true" ]]; then
     # With exclusions, we need to handle each component separately
     local installed_components=()
     local skipped_components=()
@@ -362,6 +363,30 @@ _mt_package_install_single() {
       skipped_components+=("shell")
     fi
 
+    # Install SKILL.md unless skipped
+    if [[ "$skip_skill" != "true" ]] && [[ -f "$package_path/SKILL.md" ]]; then
+      mkdir -p "${MT_PKG_DIR}/skills"
+      local skills_target="${MT_PKG_DIR}/skills/${package_name}"
+      [[ -L "$skills_target" ]] && rm "$skills_target"
+
+      if ln -s "${package_path}" "$skills_target"; then
+        mkdir -p "${HOME}/.claude/skills"
+        local claude_skill_link="${HOME}/.claude/skills/${package_name}"
+        [[ -L "$claude_skill_link" ]] && rm "$claude_skill_link"
+
+        if ln -s "$skills_target" "$claude_skill_link"; then
+          installed_components+=("skill")
+        else
+          _mt_warning "Failed to create Claude Code skill symlink for ${package_name}"
+        fi
+      else
+        _mt_error "Failed to create metool skill symlink"
+        return 1
+      fi
+    elif [[ "$skip_skill" == "true" ]] && [[ -f "$package_path/SKILL.md" ]]; then
+      skipped_components+=("skill")
+    fi
+
     if [[ ${#installed_components[@]} -gt 0 ]] || [[ ${#skipped_components[@]} -eq 0 ]]; then
       # Show success if components installed OR nothing skipped (shouldn't happen but safety)
       _mt_info "✓ Installed: $package_name"
@@ -389,6 +414,7 @@ _mt_package_install() {
   local skip_bin=false
   local skip_config=false
   local skip_shell=false
+  local skip_skill=false
   local -a package_names=()
 
   while [[ $# -gt 0 ]]; do
@@ -403,6 +429,10 @@ _mt_package_install() {
         ;;
       --no-shell)
         skip_shell=true
+        shift
+        ;;
+      --no-skill)
+        skip_skill=true
         shift
         ;;
       -*)
@@ -423,6 +453,7 @@ _mt_package_install() {
     _mt_info "  --no-bin      Skip installing bin/ directory"
     _mt_info "  --no-config   Skip installing config/ directory"
     _mt_info "  --no-shell    Skip installing shell/ directory"
+    _mt_info "  --no-skill    Skip installing SKILL.md"
     _mt_info ""
     _mt_info "Examples:"
     _mt_info "  mt package install git-tools"
@@ -437,7 +468,7 @@ _mt_package_install() {
 
   # Install each package
   for package_name in "${package_names[@]}"; do
-    if _mt_package_install_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell"; then
+    if _mt_package_install_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell" "$skip_skill"; then
       ((success_count++))
     else
       ((fail_count++))
@@ -470,6 +501,7 @@ _mt_package_uninstall_single() {
   local skip_bin="$2"
   local skip_config="$3"
   local skip_shell="$4"
+  local skip_skill="$5"
 
   # Check if package is in working set
   if ! _mt_package_in_working_set "$package_name"; then
@@ -539,6 +571,28 @@ _mt_package_uninstall_single() {
     skipped_components+=("shell")
   fi
 
+  # Uninstall SKILL.md symlinks unless skipped
+  if [[ "$skip_skill" != "true" ]] && [[ -f "$package_path/SKILL.md" ]]; then
+    local claude_skill_link="${HOME}/.claude/skills/${package_name}"
+    local skills_target="${MT_PKG_DIR}/skills/${package_name}"
+
+    # Remove Claude Code symlink
+    if [[ -L "$claude_skill_link" ]]; then
+      rm "$claude_skill_link"
+      uninstalled_components+=("skill")
+    fi
+
+    # Remove metool skills symlink
+    if [[ -L "$skills_target" ]]; then
+      rm "$skills_target"
+    fi
+
+    # Clean up empty metool skills directory
+    rmdir "${MT_PKG_DIR}/skills" 2>/dev/null || true
+  elif [[ "$skip_skill" == "true" ]] && [[ -f "$package_path/SKILL.md" ]]; then
+    skipped_components+=("skill")
+  fi
+
   if [[ ${#uninstalled_components[@]} -gt 0 ]] || [[ ${#skipped_components[@]} -eq 0 ]]; then
     # Show success message if components were uninstalled OR if nothing was skipped (standard case)
     _mt_info "✓ Uninstalled: $package_name"
@@ -557,6 +611,7 @@ _mt_package_uninstall() {
   local skip_bin=false
   local skip_config=false
   local skip_shell=false
+  local skip_skill=false
   local -a package_names=()
 
   while [[ $# -gt 0 ]]; do
@@ -571,6 +626,10 @@ _mt_package_uninstall() {
         ;;
       --no-shell)
         skip_shell=true
+        shift
+        ;;
+      --no-skill)
+        skip_skill=true
         shift
         ;;
       -*)
@@ -591,6 +650,7 @@ _mt_package_uninstall() {
     _mt_info "  --no-bin      Skip uninstalling bin/ directory"
     _mt_info "  --no-config   Skip uninstalling config/ directory"
     _mt_info "  --no-shell    Skip uninstalling shell/ directory"
+    _mt_info "  --no-skill    Skip uninstalling SKILL.md"
     _mt_info ""
     _mt_info "Examples:"
     _mt_info "  mt package uninstall git-tools"
@@ -605,7 +665,7 @@ _mt_package_uninstall() {
 
   # Uninstall each package
   for package_name in "${package_names[@]}"; do
-    if _mt_package_uninstall_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell"; then
+    if _mt_package_uninstall_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell" "$skip_skill"; then
       ((success_count++))
     else
       ((fail_count++))

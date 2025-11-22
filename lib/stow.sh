@@ -190,6 +190,39 @@ _mt_stow() {
       fi
     fi
 
+    # Handle SKILL.md - stow entire package for Claude Code
+    if [[ -f "${pkg_path}/SKILL.md" ]]; then
+      command mkdir -p "${MT_PKG_DIR}/skills"
+
+      # Stage 1: Create symlink from ~/.metool/skills/{package} to package directory
+      local skills_target="${MT_PKG_DIR}/skills/${pkg_name}"
+      if [[ -L "$skills_target" ]]; then
+        rm "$skills_target"
+      fi
+
+      if ln -s "${pkg_path}" "$skills_target"; then
+        # Stage 2: Create symlink in ~/.claude/skills/
+        mkdir -p "${HOME}/.claude/skills"
+        local claude_skill_link="${HOME}/.claude/skills/${pkg_name}"
+
+        if [[ -L "$claude_skill_link" ]]; then
+          rm "$claude_skill_link"
+        fi
+
+        if ln -s "$skills_target" "$claude_skill_link"; then
+          pkg_status+="${MT_COLOR_INFO}skill${MT_COLOR_RESET} "
+        else
+          _mt_warning "Failed to create Claude Code skill symlink for ${pkg_name}"
+          pkg_status+="${MT_COLOR_WARNING}skill${MT_COLOR_RESET} "
+        fi
+      else
+        pkg_status+="${MT_COLOR_ERROR}skill${MT_COLOR_RESET} "
+        pkg_had_error=true
+        had_errors=true
+        echo "[${pkg_name}:skill] Failed to create metool skill symlink" >&2
+      fi
+    fi
+
     # Only show detailed output for packages with errors or if verbose mode is enabled
     if $pkg_had_error || $mt_verbose; then
       printf "${pkg_name}: ${pkg_status}\n"
