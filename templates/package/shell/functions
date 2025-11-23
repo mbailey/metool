@@ -1,10 +1,48 @@
 # Shell functions for {PACKAGE_NAME}
-# [TODO: Replace with actual package description]
+# [TODO: Replace {PACKAGE_NAME} and customize functions]
+#
+# This file defines shell functions that will be available after sourcing.
+# Functions are loaded when you start a new shell or run 'mt reload'.
+#
+# NAMING CONVENTIONS:
+#   - Use lowercase with underscores: my_function_name
+#   - Prefix with package name to avoid conflicts: pkgname_do_thing
+#   - Keep names descriptive but concise
+#
+# BEST PRACTICES:
+#   - Add a comment describing what each function does
+#   - Use local variables to avoid polluting global scope
+#   - Handle errors gracefully
+#   - Return 0 on success, non-zero on failure
+#
+# EXAMPLES:
 
-# Example function
-# [TODO: Replace with actual function description]
-{PACKAGE_NAME}_example() {
-    echo "[TODO: Implement function]"
-}
+# Example: Simple utility function
+# {PACKAGE_NAME}_hello() {
+#     local name="${1:-World}"
+#     echo "Hello, $name!"
+# }
 
-# Add more functions as needed
+# Example: Function with error handling
+# {PACKAGE_NAME}_check_file() {
+#     local file="$1"
+#     if [[ -z "$file" ]]; then
+#         echo "Error: No file specified" >&2
+#         return 1
+#     fi
+#     if [[ ! -f "$file" ]]; then
+#         echo "Error: File not found: $file" >&2
+#         return 1
+#     fi
+#     echo "File exists: $file"
+#     return 0
+# }
+
+# Example: Function that wraps a command with defaults
+# {PACKAGE_NAME}_run() {
+#     local verbose="${{PACKAGE_NAME}_VERBOSE:-false}"
+#     [[ "$verbose" == "true" ]] && echo "Running with arguments: $*" >&2
+#     command {PACKAGE_NAME} "$@"
+# }
+
+# [TODO: Remove example comments and add your actual functions below]

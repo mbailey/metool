@@ -1,0 +1,33 @@
+# Environment variables for {PACKAGE_NAME}
+# [TODO: Replace {PACKAGE_NAME} and customize variables]
+#
+# This file defines environment variables that configure the behavior of
+# this package's tools and scripts.
+#
+# BEST PRACTICES:
+#   - Use UPPERCASE names with underscores: MY_VAR_NAME
+#   - Prefix with package name to avoid conflicts: PKGNAME_SETTING
+#   - Provide defaults using ${VAR:-default} pattern
+#   - Document each variable's purpose
+#   - Group related variables together
+#
+# EXAMPLES:
+
+# Package home directory
+# export {PACKAGE_NAME}_HOME="${{PACKAGE_NAME}_HOME:-${HOME}/.{PACKAGE_NAME}}"
+
+# Configuration file location
+# export {PACKAGE_NAME}_CONFIG="${{PACKAGE_NAME}_CONFIG:-${HOME}/.config/{PACKAGE_NAME}/config.yml}"
+
+# Feature flags (useful for optional features)
+# export {PACKAGE_NAME}_ENABLE_FEATURE="${{PACKAGE_NAME}_ENABLE_FEATURE:-true}"
+# export {PACKAGE_NAME}_DEBUG="${{PACKAGE_NAME}_DEBUG:-false}"
+
+# Default values for tool behavior
+# export {PACKAGE_NAME}_DEFAULT_OPTION="${{PACKAGE_NAME}_DEFAULT_OPTION:-value}"
+# export {PACKAGE_NAME}_TIMEOUT="${{PACKAGE_NAME}_TIMEOUT:-30}"
+
+# Integration with other tools
+# export {PACKAGE_NAME}_EDITOR="${{PACKAGE_NAME}_EDITOR:-${EDITOR:-vim}}"
+
+# [TODO: Remove example comments and add your actual environment variables below]

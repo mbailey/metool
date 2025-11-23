@@ -1,0 +1,37 @@
+# PATH configuration for {PACKAGE_NAME}
+# [TODO: Replace {PACKAGE_NAME} and customize paths]
+#
+# This file modifies the $PATH environment variable to include directories
+# containing executables for this package.
+#
+# FUNCTIONS AVAILABLE:
+#   mt_path_prepend <dir> [<dir>...]  - Add directories to the START of $PATH
+#   mt_path_append <dir> [<dir>...]   - Add directories to the END of $PATH
+#
+# These functions automatically:
+#   - Check if directories exist before adding
+#   - Avoid duplicate entries
+#   - Handle multiple directories in one call
+#
+# WHEN TO USE PREPEND vs APPEND:
+#   - Use prepend when you want your version to override system versions
+#   - Use append when you want to add fallback/supplementary paths
+#
+# EXAMPLES:
+
+# Prepend - makes this package's tools take precedence
+# mt_path_prepend "${HOME}/.{PACKAGE_NAME}/bin"
+
+# Append - adds additional tool locations without overriding
+# mt_path_append "${HOME}/.{PACKAGE_NAME}/scripts"
+
+# Multiple paths at once
+# mt_path_prepend \
+#     "${HOME}/.local/{PACKAGE_NAME}/bin" \
+#     "/opt/{PACKAGE_NAME}/bin"
+
+# Common pattern: prepend user-local, append system-wide
+# mt_path_prepend "${HOME}/.local/bin"
+# mt_path_append "/usr/local/{PACKAGE_NAME}/bin"
+
+# [TODO: Remove example comments and add your actual PATH modifications below]

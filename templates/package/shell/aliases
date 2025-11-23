@@ -1,6 +1,41 @@
 # Aliases for {PACKAGE_NAME}
-# [TODO: Replace with actual package description]
+# [TODO: Replace {PACKAGE_NAME} and customize aliases]
+#
+# This file defines command aliases that will be available after sourcing.
+# Aliases are loaded when you start a new shell or run 'mt reload'.
+#
+# NAMING CONVENTIONS:
+#   - Use lowercase with hyphens: my-alias
+#   - Keep names short and memorable
+#   - Avoid overriding common commands unless intentional
+#
+# BEST PRACTICES:
+#   - Use aliases for frequently-used command combinations
+#   - Add a comment explaining what each alias does
+#   - Group related aliases together
+#   - Consider using functions for complex logic (see shell/functions)
+#
+# EXAMPLES:
 
-# Example alias
-# [TODO: Replace with actual aliases]
-# alias tool-shortcut='tool-name --common-option'
+# Shortcuts for common commands with default options
+# alias {pkg}-start='example-tool start --verbose'
+# alias {pkg}-stop='example-tool stop'
+# alias {pkg}-restart='example-tool restart'
+
+# Quick status checks
+# alias {pkg}-status='example-tool status --short'
+# alias {pkg}-logs='example-tool logs --follow --tail 100'
+
+# Configuration editing
+# alias {pkg}-config='$EDITOR ~/.config/{PACKAGE_NAME}/config.yml'
+# alias {pkg}-edit='{pkg}-config'
+
+# Common operations with defaults
+# alias {pkg}-sync='example-tool sync --auto-confirm'
+# alias {pkg}-clean='example-tool clean --dry-run'  # Safety first!
+
+# Directory navigation
+# alias {pkg}-cd='cd ~/.{PACKAGE_NAME}'
+# alias {pkg}-logs-cd='cd ~/.{PACKAGE_NAME}/logs'
+
+# [TODO: Remove example comments and add your actual aliases below]
