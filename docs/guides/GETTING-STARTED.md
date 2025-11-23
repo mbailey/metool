@@ -140,19 +140,19 @@ If a package includes systemd (Linux) or launchd (macOS) services:
 
 ```bash
 # List services in a package
-mt package service list prometheus
+mt service list prometheus
 
 # Start a service
-mt package service start prometheus
+mt service start prometheus
 
 # Check service status
-mt package service status prometheus
+mt service status prometheus
 
 # View logs
-mt package service logs prometheus -f
+mt service logs prometheus -f
 
 # Enable service to start at boot/login
-mt package service enable prometheus
+mt service enable prometheus
 ```
 
 ## Uninstalling
@@ -241,7 +241,7 @@ source ~/.metool/shell/mt
 - `mt --help` - General help
 - `mt module --help` - Module commands
 - `mt package --help` - Package commands
-- `mt package service --help` - Service commands
+- `mt service --help` - Service commands
 
 ## Next Steps
 

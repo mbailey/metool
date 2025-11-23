@@ -402,7 +402,7 @@ _mt_package_install_single() {
 
   # Check if package has services
   if _mt_package_has_services "$package_name"; then
-    _mt_info "→ Includes services: mt package service $package_name <start|stop|status|enable|disable>"
+    _mt_info "→ Includes services: mt service $package_name <start|stop|status|enable|disable>"
   fi
 
   return 0
@@ -716,9 +716,6 @@ _mt_package() {
     uninstall)
       _mt_package_uninstall "$@"
       ;;
-    service)
-      _mt_service "$@"
-      ;;
     new)
       _mt_package_new "$@"
       ;;
@@ -735,17 +732,12 @@ Commands:
   edit <package>                 Open package in editor
   install <package>... [opts]    Install package(s) using stow
   uninstall <package>... [opts]  Uninstall package(s) (remove symlinks)
-  service <cmd> <package>        Manage package services (systemd/launchd)
   new NAME [PATH]                Create a new package from template
 
 Install/Uninstall Options:
   --no-bin      Skip bin/ directory
   --no-config   Skip config/ directory
   --no-shell    Skip shell/ directory
-
-Service Commands:
-  list, start, stop, restart, status, enable, disable, logs
-  Run 'mt package service --help' for details
 
 Examples:
   mt package list
@@ -756,8 +748,6 @@ Examples:
   mt package install agents tmux vim-config # Install multiple packages
   mt package install vim-config --no-bin --no-shell
   mt package uninstall agents tmux          # Uninstall multiple packages
-  mt package service start prometheus
-  mt package service logs prometheus -f
   mt package remove git-tools
   mt package edit git-tools
 

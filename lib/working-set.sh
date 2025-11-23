@@ -130,3 +130,19 @@ _mt_package_has_services() {
 
   return 1
 }
+
+# Get package names that have services (for completion)
+# Returns one package name per line, only for packages with service files
+_mt_get_packages_with_services() {
+  mkdir -p "${MT_PACKAGES_DIR}"
+
+  find "${MT_PACKAGES_DIR}" -maxdepth 1 -type l 2>/dev/null | while IFS= read -r package_link; do
+    [[ -L "$package_link" ]] || continue
+    local package_name=$(basename "$package_link")
+
+    # Only output if package has services
+    if _mt_package_has_services "$package_name" 2>/dev/null; then
+      echo "$package_name"
+    fi
+  done | sort
+}

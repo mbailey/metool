@@ -32,12 +32,22 @@ _mt_complete_packages() {
   COMPREPLY=($(compgen -W "${package_names}" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
+_mt_complete_packages_with_services() {
+  # Get packages that have services (MT-16)
+  local package_names=""
+  if type -t _mt_get_packages_with_services &>/dev/null; then
+    package_names=$(_mt_get_packages_with_services 2>/dev/null | tr '\n' ' ')
+  fi
+
+  COMPREPLY=($(compgen -W "${package_names}" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+
 _mt_completions() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   # Get all mt commands from libexec
-  local mt_commands="cd edit git module package reload update deps"
+  local mt_commands="cd edit git module package service reload update deps"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -73,7 +83,7 @@ _mt_completions() {
     fi
   elif [[ ${prev} == "package" ]]; then
     # Complete with package subcommands
-    local package_subcommands="list add remove edit install uninstall service new"
+    local package_subcommands="list add remove edit install uninstall new"
     COMPREPLY=($(compgen -W "${package_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "remove" ]]; then
     # Complete with package names for removal
@@ -95,13 +105,13 @@ _mt_completions() {
     else
       _mt_complete_packages
     fi
-  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "service" ]]; then
+  elif [[ ${prev} == "service" ]]; then
     # Complete with service subcommands
     local service_subcommands="start stop restart status enable disable logs list"
     COMPREPLY=($(compgen -W "${service_subcommands}" -- "${cur}"))
-  elif [[ ${COMP_WORDS[1]} == "package" && ${COMP_WORDS[2]} == "service" ]]; then
-    # Complete with package names for service commands
-    _mt_complete_packages
+  elif [[ ${COMP_WORDS[1]} == "service" ]]; then
+    # Complete with package names that have services
+    _mt_complete_packages_with_services
   elif [[ ${prev} == "deps" ]]; then
     # Complete with deps flags
     local deps_flags="--install --fix --auto --help"

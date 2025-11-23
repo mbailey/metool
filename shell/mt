@@ -175,7 +175,15 @@ mt() {
       echo "    install PKG [OPTS]   Install package components"
       echo "    uninstall PKG [OPTS] Uninstall package (remove symlinks)"
       echo "    new NAME [PATH]      Create new package from template"
-      echo "    service CMD PKG      Manage package services"
+      echo "  service <subcommand>   Service management"
+      echo "    list PKG             List services in package"
+      echo "    start PKG            Start service(s)"
+      echo "    stop PKG             Stop service(s)"
+      echo "    restart PKG          Restart service(s)"
+      echo "    status PKG           Show service status"
+      echo "    enable PKG           Enable service at boot/login"
+      echo "    disable PKG          Disable service at boot/login"
+      echo "    logs PKG             View service logs"
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
       echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
@@ -220,6 +228,10 @@ mt() {
     package)
       shift
       _mt_package "$@"
+      ;;
+    service)
+      shift
+      _mt_service "$@"
       ;;
     deps)
       shift

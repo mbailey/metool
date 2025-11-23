@@ -71,7 +71,7 @@ _mt_service_list() {
   local package_name="$1"
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service list <package>"
+    _mt_error "Usage: mt service list <package>"
     return 1
   fi
 
@@ -104,7 +104,7 @@ _mt_service_start() {
   local service_name="${2:-}"
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service start <package> [service-name]"
+    _mt_error "Usage: mt service start <package> [service-name]"
     return 1
   fi
 
@@ -189,7 +189,7 @@ _mt_service_stop() {
   local service_name="${2:-}"
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service stop <package> [service-name]"
+    _mt_error "Usage: mt service stop <package> [service-name]"
     return 1
   fi
 
@@ -279,7 +279,7 @@ _mt_service_status() {
   local service_name="${2:-}"
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service status <package> [service-name]"
+    _mt_error "Usage: mt service status <package> [service-name]"
     return 1
   fi
 
@@ -352,7 +352,7 @@ _mt_service_enable() {
   local service_name="${2:-}"
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service enable <package> [service-name]"
+    _mt_error "Usage: mt service enable <package> [service-name]"
     return 1
   fi
 
@@ -442,7 +442,7 @@ _mt_service_disable() {
   local service_name="${2:-}"
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service disable <package> [service-name]"
+    _mt_error "Usage: mt service disable <package> [service-name]"
     return 1
   fi
 
@@ -546,7 +546,7 @@ _mt_service_logs() {
   done
 
   if [[ -z "$package_name" ]]; then
-    _mt_error "Usage: mt package service logs <package> [service-name] [-f] [-n NUM]"
+    _mt_error "Usage: mt service logs <package> [service-name] [-f] [-n NUM]"
     return 1
   fi
 
@@ -673,7 +673,7 @@ _mt_service() {
       ;;
     -h|--help|"")
       cat <<EOF
-Usage: mt package service <command> <package> [service-name] [options]
+Usage: mt service <command> <package> [service-name] [options]
 
 Manage services in metool packages.
 
@@ -692,11 +692,11 @@ Log Options:
   -n, --lines NUM     Show NUM lines (default: 50)
 
 Examples:
-  mt package service list prometheus
-  mt package service start prometheus
-  mt package service status prometheus prometheus.service
-  mt package service logs prometheus -f
-  mt package service enable prometheus
+  mt service list prometheus
+  mt service start prometheus
+  mt service status prometheus prometheus.service
+  mt service logs prometheus -f
+  mt service enable prometheus
 
 Note: Services are managed via systemd (Linux) or launchd (macOS)
 
@@ -705,7 +705,7 @@ EOF
       ;;
     *)
       _mt_error "Unknown service command: $subcommand"
-      _mt_info "Run 'mt package service --help' for usage"
+      _mt_info "Run 'mt service --help' for usage"
       return 1
       ;;
   esac
