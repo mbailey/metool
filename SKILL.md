@@ -73,7 +73,8 @@ Brief description of what this package provides
 ## Installation
 
 \`\`\`bash
-mt install module/package-name
+mt package add module/package-name
+mt package install package-name
 \`\`\`
 
 ## Components
@@ -188,13 +189,37 @@ import click
 
 ## Common Commands
 
-### mt install
+### mt package add
+Add a package from a module to your working set:
+```bash
+mt package add module/package    # Add package from module to working set
+mt package add dev/dependabot    # Example: add dependabot from dev module
+```
+
+### mt package install
 Install a package by symlinking its components:
+```bash
+mt package install package-name  # Install package (must be in working set)
+mt package install dependabot    # Example: install dependabot package
+```
+
+**Complete Installation Workflow:**
+```bash
+# Step 1: Add package to working set
+mt package add dev/dependabot
+
+# Step 2: Install package (create symlinks)
+mt package install dependabot
+```
+
+### mt install (deprecated)
+Legacy command for installing packages:
 ```bash
 mt install package-name          # Install from current directory
 mt install path/to/package       # Install specific package
-mt install -v package-name       # Verbose mode
 ```
+
+**Note:** Use `mt package add` + `mt package install` workflow instead.
 
 ### mt cd
 Change to metool root or specific component:
@@ -228,6 +253,59 @@ Reload metool configuration:
 mt reload                # Reload shell configuration
 ```
 
+## Discovering Packages and Modules
+
+### Listing Modules
+
+To see which modules are in the working set:
+
+```bash
+mt module list
+```
+
+Output shows module name and path:
+```
+    MODULE                         PATH
+--- ------                         ----
+✓  dev                         /Users/admin/Code/github.com/mbailey/metool-packages-dev
+✓  pub                         /Users/admin/Code/github.com/mbailey/metool-packages
+```
+
+### Listing Packages
+
+To see which packages are in the working set:
+
+```bash
+mt package list
+```
+
+Output shows package name and full path where the symlink points:
+```
+    PACKAGE                        PATH
+--- -------                        ----
+✓  git                        /Users/admin/Code/github.com/mbailey/metool-packages-dev/git
+✓  agents                     /Users/admin/Code/github.com/mbailey/agents
+```
+
+### Finding Specific Packages
+
+To conserve context when searching for a specific package, pipe through grep:
+
+```bash
+# Find packages matching 'git' (use word boundary to avoid matching 'github')
+mt package list | grep -w git
+
+# Find packages containing 'docker'
+mt package list | grep docker
+```
+
+**Context-efficient workflow:**
+1. Run `mt package list | grep <search-term>` to find the package
+2. Note the package name and path from the output
+3. Use the path directly instead of re-listing all packages
+
+This approach saves context by showing only relevant matches instead of loading all 200+ packages into the conversation.
+
 ## Checking Dependencies
 
 Always check for required tools in scripts:
@@ -243,7 +321,7 @@ For metool package dependencies:
 ```bash
 if ! command -v other-tool >/dev/null; then
   echo "Error: other-tool from other-package is required" >&2
-  echo "Install with: mt install module/other-package" >&2
+  echo "Install with: mt package add module/other-package && mt package install other-package" >&2
   exit 1
 fi
 ```
@@ -413,10 +491,14 @@ cat > copyparty/lib/launchd/com.user.copyparty.plist << 'EOF'
 </plist>
 EOF
 
-# 6. Install the package
-mt install copyparty
+# 6. Add package to working set (if in a module)
+# Assuming copyparty is in a module, e.g., services module
+mt package add services/copyparty
 
-# 7. Run installation script
+# 7. Install the package
+mt package install copyparty
+
+# 8. Run installation script
 copyparty-install
 ```
 
