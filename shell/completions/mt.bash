@@ -37,7 +37,7 @@ _mt_completions() {
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   # Get all mt commands from libexec
-  local mt_commands="cd edit git module package reload update deps"
+  local mt_commands="cd deps doctor edit git module package reload update"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -106,6 +106,10 @@ _mt_completions() {
     # Complete with deps flags
     local deps_flags="--install --fix --auto --help"
     COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
+  elif [[ ${prev} == "doctor" ]] || [[ ${COMP_WORDS[1]} == "doctor" ]]; then
+    # Complete with doctor flags
+    local doctor_flags="--fix --yes -y --verbose -v --json -h --help"
+    COMPREPLY=($(compgen -W "${doctor_flags}" -- "${cur}"))
   elif [[ ${prev} == "git" ]]; then
     # Complete with git subcommands
     local git_subcommands="add clone repos sync trusted"
