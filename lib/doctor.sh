@@ -189,7 +189,7 @@ _mt_doctor_deps() {
     fi
   fi
 
-  # Check symlinks command (required for broken symlink detection)
+  # Check symlinks command (optional - helpful for finding broken symlinks)
   if command -v symlinks &>/dev/null; then
     local symlinks_version
     symlinks_version=$(symlinks -v 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)
@@ -199,8 +199,7 @@ _mt_doctor_deps() {
       _mt_doctor_ok "symlinks"
     fi
   else
-    _mt_doctor_error "symlinks not found" "Required for broken symlink detection" "brew install symlinks"
-    has_errors=true
+    _mt_doctor_info "symlinks not installed (optional - install with: brew install symlinks)"
   fi
 
   $has_errors && return 1
