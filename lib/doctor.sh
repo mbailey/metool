@@ -155,8 +155,9 @@ _mt_doctor_deps() {
       if [[ "$major" -gt 2 ]] || ([[ "$major" -eq 2 ]] && [[ "$minor" -ge 4 ]]); then
         _mt_doctor_ok "stow ${stow_version}"
       else
-        _mt_doctor_error "stow ${stow_version} (need 2.4.0+)" "" "brew upgrade stow"
-        has_errors=true
+        _mt_doctor_warning "stow ${stow_version} (2.4.0+ recommended for full functionality)" \
+          "Some features may not work correctly" \
+          "brew upgrade stow"
       fi
     else
       _mt_doctor_warning "stow (version unknown)" "" ""
