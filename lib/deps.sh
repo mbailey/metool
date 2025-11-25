@@ -282,6 +282,16 @@ _mt_check_deps() {
     echo "     Add to ~/.bashrc: [[ -r \"/opt/homebrew/etc/profile.d/bash_completion.sh\" ]] && . \"/opt/homebrew/etc/profile.d/bash_completion.sh\"" >&2
   fi
   
+  # Check for symlinks command (required for mt doctor and mt clean)
+  if ! command -v symlinks &>/dev/null; then
+    missing_deps+=("symlinks (for broken symlink detection)")
+    echo "  ❌ symlinks: Not found" >&2
+    echo "     Install: brew install symlinks (macOS) or apt install symlinks (Linux)" >&2
+    echo "     Note: Required for 'mt doctor' and 'mt clean'" >&2
+  else
+    echo "  ✅ symlinks: Found at $(command -v symlinks)"
+  fi
+
   # Check for bats (optional, for running tests)
   if ! command -v bats &>/dev/null; then
     warnings+=("bats-core (for running tests)")

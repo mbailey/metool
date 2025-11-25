@@ -39,6 +39,7 @@ mt() {
   source "${MT_ROOT}/lib/working-set.sh" # MT-11 working set helpers
   source "${MT_ROOT}/lib/module.sh" # MT-11 module commands
   source "${MT_ROOT}/lib/service.sh" # MT-11 service commands
+  source "${MT_ROOT}/lib/doctor.sh" # MT-12 system health diagnostics
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
@@ -179,6 +180,7 @@ mt() {
       echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
       echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
+      echo "  doctor [OPTIONS]       Run system health diagnostics"
       echo "  -h, --help             Show this help message and exit"
       echo
       ;;
@@ -224,6 +226,10 @@ mt() {
     deps)
       shift
       _mt_deps "$@"
+      ;;
+    doctor)
+      shift
+      _mt_doctor "$@"
       ;;
     help)
       # Redirect help to -h/--help handler
