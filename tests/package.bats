@@ -52,7 +52,7 @@ teardown() {
   run _mt_package_list
   [ $status -eq 0 ]
   [[ "$output" =~ "test-package" ]]
-  [[ "$output" =~ "○" ]]  # Not installed indicator
+  [[ "$output" =~ "✓" ]]  # Valid symlink indicator
 }
 
 @test "package: list shows installed package" {
@@ -69,7 +69,7 @@ teardown() {
   run _mt_package_list
   [ $status -eq 0 ]
   [[ "$output" =~ "test-package" ]]
-  [[ "$output" =~ "●" ]]  # Installed indicator
+  [[ "$output" =~ "✓" ]]  # Valid symlink indicator
 }
 
 @test "package: list shows broken package symlink" {

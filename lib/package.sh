@@ -17,26 +17,6 @@ _mt_package_list() {
   # Ensure packages directory exists
   mkdir -p "${MT_PACKAGES_DIR}"
 
-  # Build index of installed packages for performance
-  # (avoid calling find 3x per package)
-  local -A installed_packages
-  for component_dir in bin shell config; do
-    local stow_dir="${MT_PKG_DIR}/${component_dir}"
-    [[ -d "$stow_dir" ]] || continue
-
-    while IFS= read -r link; do
-      [[ -L "$link" ]] || continue
-      local link_target
-      link_target=$(readlink -f "$link" 2>/dev/null) || continue
-
-      # Extract package name from symlink target path
-      # Expected format: .../.metool/modules/<module>/<package>/...
-      if [[ "$link_target" =~ /modules/[^/]+/([^/]+)/ ]]; then
-        installed_packages["${BASH_REMATCH[1]}"]=1
-      fi
-    done < <(find "$stow_dir" -type l 2>/dev/null)
-  done
-
   # Check if any packages exist
   local package_count=0
   local -a packages=()
@@ -45,30 +25,15 @@ _mt_package_list() {
     [[ -L "$package_link" ]] || continue
     local package_name=$(basename "$package_link")
     local target=$(readlink -f "$package_link" 2>/dev/null)
-    local status="○"  # Not installed
-    local broken=false
+    local status="✓"
 
     # Check if symlink is broken
     if [[ -z "$target" ]] || [[ ! -d "$target" ]]; then
       status="✗"
-      broken=true
       target="${target:-broken}"
-    else
-      # Check if package is installed using pre-built index
-      if [[ -n "${installed_packages[$package_name]}" ]]; then
-        status="●"  # Installed
-      fi
     fi
 
-    # Extract module name from target path
-    local module_name=""
-    if [[ "$broken" == "false" ]]; then
-      if [[ "$target" =~ /modules/([^/]+)/.+$ ]]; then
-        module_name="${BASH_REMATCH[1]}"
-      fi
-    fi
-
-    packages+=("${status}\t${package_name}\t${module_name}\t${target}")
+    packages+=("${status}\t${package_name}\t${target}")
     ((package_count++))
   done < <(find "${MT_PACKAGES_DIR}" -maxdepth 1 -type l 2>/dev/null | sort)
 
@@ -79,8 +44,8 @@ _mt_package_list() {
   fi
 
   # Output header
-  printf "%-3s %-25s %-20s %s\n" "" "PACKAGE" "MODULE" "PATH"
-  printf "%-3s %-25s %-20s %s\n" "---" "-------" "------" "----"
+  printf "%-3s %-30s %s\n" "" "PACKAGE" "PATH"
+  printf "%-3s %-30s %s\n" "---" "-------" "----"
 
   # Output packages
   for package_info in "${packages[@]}"; do
@@ -88,7 +53,6 @@ _mt_package_list() {
   done | column -t -s $'\t'
 
   echo
-  echo "Legend: ● installed, ○ not installed, ✗ broken"
   _mt_info "Total packages: $package_count"
 }
 
