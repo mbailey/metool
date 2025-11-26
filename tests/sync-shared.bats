@@ -275,6 +275,40 @@ EOF
   [[ "$output" =~ "[INFO] Symlink conflict" ]]
 }
 
+@test "mt sync should not error when worktree exists where symlink would be" {
+  # This tests the scenario where you run mt git sync from a directory
+  # like ~/Code/github.com/mbailey/ and the actual git worktree exists
+  # at the same location the symlink would point to
+
+  # Pre-create the repo in the canonical location
+  local repo_path="${MT_GIT_BASE_DIR}/github.com/mbailey/mt-public"
+  mkdir -p "${repo_path}"
+  cd "${repo_path}"
+  git init --quiet
+  git config user.email "test@example.com"
+  git config user.name "Test User"
+  echo "test" > README.md
+  git add README.md
+  git commit -m "Initial commit" --quiet
+  cd - > /dev/null
+
+  # Create repos.txt that would create a symlink pointing to the same place
+  # where the actual worktree exists
+  cd "${MT_GIT_BASE_DIR}/github.com/mbailey"
+  cat > repos.txt << 'EOF'
+mbailey/mt-public
+EOF
+
+  run run_with_stderr _mt_sync_process_repos repos.txt "$(pwd)" "false"
+
+  # Should succeed without error
+  [ "$status" -eq 0 ]
+
+  # Should NOT show error about target existing
+  [[ ! "$output" =~ "Target exists and is not a symlink" ]]
+  [[ ! "$output" =~ "error" ]] || [[ "$output" =~ "error" && ! "$output" =~ "Target exists" ]]
+}
+
 @test "mt sync should produce TSV summary output" {
   cat > repos.txt << 'EOF'
 mbailey/mt-public
@@ -310,7 +344,8 @@ EOF
   
   # Check specific entries exist in output (column order: REPO | REF | STATUS | TARGET | STRATEGY)
   [[ "$output" =~ "mbailey/mt-public" ]]
-  [[ "$output" =~ "master" ]]  # Now shows actual branch instead of "default"
+  # Should show actual branch (main or master depending on git version)
+  [[ "$output" =~ "main" ]] || [[ "$output" =~ "master" ]]
   [[ "$output" =~ "mt-public" ]]
   [[ "$output" =~ "shared" ]]
   
@@ -330,7 +365,8 @@ EOF
   echo "test" > README.md
   git add README.md
   git commit -m "Initial commit" --quiet
-  git branch main  # Create main branch
+  # Create main branch if it doesn't exist (git defaults vary by version)
+  git branch main 2>/dev/null || true
   git checkout -b feature-branch --quiet
   cd - > /dev/null
   

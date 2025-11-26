@@ -520,9 +520,19 @@ _mt_sync_shared_repo() {
       return 1
     fi
   elif [[ -e "$target_name" ]]; then
-    _mt_error "Target exists and is not a symlink: $target_name"
-    echo "error"
-    return 1
+    # Check if the existing path and target are the same (actual worktree exists where symlink would point)
+    local existing_path target_real
+    existing_path="$(command realpath "$target_name" 2>/dev/null || echo "$target_name")"
+    target_real="$(command realpath "$git_repo_path" 2>/dev/null || echo "$git_repo_path")"
+
+    if [[ "$existing_path" == "$target_real" ]]; then
+      # Source and destination are identical, no symlink needed
+      _mt_debug "Skipping symlink creation: $target_name and $git_repo_path are the same"
+    else
+      _mt_error "Target exists and is not a symlink: $target_name"
+      echo "error"
+      return 1
+    fi
   else
     echo "[INFO] Creating symlink: $target_name -> $git_repo_path" >&2
     if ! _mt_create_relative_symlink "$git_repo_path" "$target_name"; then
@@ -752,8 +762,19 @@ _mt_sync_process_repos() {
           status="wrong-link"
         fi
       elif [[ -e "$target" ]]; then
-        _mt_error "Target exists and is not a symlink: $target"
-        status="error"
+        # Check if the existing path and target are the same (actual worktree exists where symlink would point)
+        local existing_path target_real
+        existing_path="$(command realpath "$target" 2>/dev/null || echo "$target")"
+        target_real="$(command realpath "$git_repo_path" 2>/dev/null || echo "$git_repo_path")"
+
+        if [[ "$existing_path" == "$target_real" ]]; then
+          # Source and destination are identical, no symlink needed
+          _mt_debug "Skipping symlink creation: $target and $git_repo_path are the same"
+          status="exists"
+        else
+          _mt_error "Target exists and is not a symlink: $target"
+          status="error"
+        fi
       else
         _mt_info "Creating symlink: $target -> $git_repo_path"
         if _mt_create_relative_symlink "$git_repo_path" "$target"; then
