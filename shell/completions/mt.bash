@@ -4,6 +4,20 @@ _mt_complete_functions_and_executables() {
   COMPREPLY=($(compgen -W "${functions} ${executables}" -- "${COMP_WORDS[COMP_CWORD]}"))
 }
 
+_mt_complete_modules_and_packages() {
+  # Get only modules and packages from working set (no functions/executables)
+  local module_names=""
+  local package_names=""
+  if type -t _mt_get_working_set_modules &>/dev/null; then
+    module_names=$(_mt_get_working_set_modules 2>/dev/null | tr '\n' ' ')
+  fi
+  if type -t _mt_get_working_set_packages &>/dev/null; then
+    package_names=$(_mt_get_working_set_packages 2>/dev/null | tr '\n' ' ')
+  fi
+
+  COMPREPLY=($(compgen -W "${module_names} ${package_names}" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+
 _mt_complete_executables() {
   COMPREPLY=($(compgen -c -- "${COMP_WORDS[COMP_CWORD]}"))
 }
@@ -51,7 +65,7 @@ _mt_completions() {
       COMPREPLY=($(compgen -W "${mt_commands}" -- "${cur}"))
     fi
   elif [[ ${prev} == "cd" ]]; then
-    _mt_complete_functions_and_executables
+    _mt_complete_modules_and_packages
   elif [[ ${prev} == "edit" ]]; then
     _mt_complete_functions_and_executables
   elif [[ ${prev} == "module" ]]; then

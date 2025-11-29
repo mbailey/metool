@@ -1,6 +1,6 @@
 # mt cd
 
-Change directory to MT_ROOT or the location of a function, executable, or file
+Change directory to MT_ROOT, a module, package, function, or executable
 
 ## Usage
 
@@ -20,6 +20,12 @@ mt cd [TARGET]
 # Change to MT_ROOT directory
 mt cd
 
+# Change to a module directory
+mt cd metool-packages
+
+# Change to a package directory
+mt cd git-tools
+
 # Change to directory containing a function
 mt cd mt
 
@@ -32,11 +38,15 @@ mt cd git
 The `mt cd` command changes the current working directory based on the target provided:
 
 - **Without arguments**: Changes to the MT_ROOT directory (the root of your metool installation)
+- **With a module name**: Changes to the module directory in your working set (`~/.metool/modules/`)
+- **With a package name**: Changes to the package directory in your working set (`~/.metool/packages/`)
 - **With a function name**: Changes to the directory containing the file where the function is defined
 - **With an executable name**: Changes to the directory containing the executable found in PATH
 
-This is particularly useful for quickly navigating to package directories or the location of specific tools and functions.
+The lookup order is: modules → packages → functions → executables. Symlinks are resolved to navigate to the actual directory.
+
+This is particularly useful for quickly navigating to package directories for development.
 
 ## See Also
 
-`mt install`, `mt sync`, `mt edit`
+`mt module list`, `mt package list`, `mt edit`
