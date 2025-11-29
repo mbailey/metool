@@ -18,6 +18,22 @@ setup() {
   export TEST_DIR2="${TMPDIR}/test-dir2"
   mkdir -p "${TEST_DIR1}"
   mkdir -p "${TEST_DIR2}"
+
+  # Create working set directories for module/package tests (MT-27)
+  export MT_MODULES_DIR="${MT_PKG_DIR}/modules"
+  export MT_PACKAGES_DIR="${MT_PKG_DIR}/packages"
+  mkdir -p "${MT_MODULES_DIR}"
+  mkdir -p "${MT_PACKAGES_DIR}"
+
+  # Create a test module (symlink to a "real" module directory)
+  export TEST_MODULE_REAL="${TMPDIR}/real-module"
+  mkdir -p "${TEST_MODULE_REAL}"
+  ln -s "${TEST_MODULE_REAL}" "${MT_MODULES_DIR}/test-module"
+
+  # Create a test package (symlink to a "real" package directory)
+  export TEST_PACKAGE_REAL="${TMPDIR}/real-package"
+  mkdir -p "${TEST_PACKAGE_REAL}"
+  ln -s "${TEST_PACKAGE_REAL}" "${MT_PACKAGES_DIR}/test-package"
   
   # Create test executable in test-dir1
   cat > "${TEST_DIR1}/test-executable" << 'EOL'
@@ -108,28 +124,28 @@ teardown() {
 @test "_mt_cd with wrong number of arguments shows usage" {
   # Start in work directory
   cd "${WORK_DIR}"
-  
+
   # Try to cd with no arguments
   run _mt_cd
-  
+
   # Check it failed
   [ "$status" -eq 1 ]
-  [[ "$output" =~ "Usage: mt cd <file|function|executable>" ]]
+  [[ "$output" =~ "Usage: mt cd <module|package|function|executable>" ]]
 }
 
 @test "_mt_cd with multiple arguments shows usage" {
   # Start in work directory
   cd "${WORK_DIR}"
-  
+
   # Need to source the functions in subshell
   run bash -c "
     source '${MT_ROOT}/lib/path.sh'
     _mt_cd arg1 arg2
   "
-  
+
   # Check it failed
   [ "$status" -eq 1 ]
-  [[ "$output" =~ "Usage: mt cd <file|function|executable>" ]]
+  [[ "$output" =~ "Usage: mt cd <module|package|function|executable>" ]]
 }
 
 @test "_mt_cd prioritizes function over executable when both exist" {
@@ -357,4 +373,101 @@ EOF
   
   # Check we're in the shell directory (resolve symlinks for comparison)
   [ "$(realpath "$PWD")" = "$(realpath "${MT_ROOT}/shell")" ]
+}
+
+# MT-27: Module and Package cd tests
+
+@test "_mt_cd to module changes to module's real directory" {
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to test-module
+  _mt_cd test-module
+
+  # Check we're in the real module directory (symlink resolved)
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_MODULE_REAL")" ]
+}
+
+@test "_mt_cd to package changes to package's real directory" {
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to test-package
+  _mt_cd test-package
+
+  # Check we're in the real package directory (symlink resolved)
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_PACKAGE_REAL")" ]
+}
+
+@test "_mt_cd prioritizes module over package with same name" {
+  # Create a module and package with the same name
+  SHARED_REAL_MOD="${TMPDIR}/real-shared-module"
+  SHARED_REAL_PKG="${TMPDIR}/real-shared-package"
+  mkdir -p "${SHARED_REAL_MOD}"
+  mkdir -p "${SHARED_REAL_PKG}"
+  ln -s "${SHARED_REAL_MOD}" "${MT_MODULES_DIR}/shared-name"
+  ln -s "${SHARED_REAL_PKG}" "${MT_PACKAGES_DIR}/shared-name"
+
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to shared-name (should prefer module)
+  _mt_cd shared-name
+
+  # Check we're in the module directory, not the package directory
+  [ "$(realpath "$PWD")" = "$(realpath "$SHARED_REAL_MOD")" ]
+}
+
+@test "_mt_cd prioritizes module over function with same name" {
+  # Create a function with same name as a module
+  module_named_function() {
+    echo "This is a function named like a module"
+  }
+
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to test-module (should prefer the module over looking for a function)
+  _mt_cd test-module
+
+  # Check we're in the module directory
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_MODULE_REAL")" ]
+}
+
+@test "_mt_cd prioritizes package over function with same name" {
+  # Create a function with same name as a package (using underscores since - not valid in function names)
+  test_package() {
+    echo "This is a function named like a package"
+  }
+
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to test-package (should prefer the package)
+  _mt_cd test-package
+
+  # Check we're in the package directory
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_PACKAGE_REAL")" ]
+}
+
+@test "_mt_cd falls back to function when no module or package matches" {
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to test_function (only exists as a function, not module or package)
+  _mt_cd test_function
+
+  # Check we're in the functions directory
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_DIR2")" ]
+}
+
+@test "_mt_cd falls back to executable when no module, package, or function matches" {
+  # Start in work directory
+  cd "${WORK_DIR}"
+
+  # cd to test-executable (only exists as an executable)
+  _mt_cd test-executable
+
+  # Check we're in the executable directory
+  [ "$(realpath "$PWD")" = "$(realpath "$TEST_DIR1")" ]
 }

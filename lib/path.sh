@@ -1,6 +1,6 @@
 _mt_cd() {
   if (($# != 1)); then
-    echo "Usage: mt cd <file|function|executable>" >&2
+    echo "Usage: mt cd <module|package|function|executable>" >&2
     return 1
   fi
 
@@ -10,12 +10,26 @@ _mt_cd() {
     return 1
   fi
 
+  local target="$1"
+
+  # Try module first (check ~/.metool/modules/)
+  if [[ -d "${MT_MODULES_DIR:-$HOME/.metool/modules}/${target}" ]]; then
+    cd "$(realpath "${MT_MODULES_DIR:-$HOME/.metool/modules}/${target}")"
+    return
+  fi
+
+  # Try package (check ~/.metool/packages/)
+  if [[ -d "${MT_PACKAGES_DIR:-$HOME/.metool/packages}/${target}" ]]; then
+    cd "$(realpath "${MT_PACKAGES_DIR:-$HOME/.metool/packages}/${target}")"
+    return
+  fi
+
   # Enable extdebug to get function source info
   shopt -s extdebug
 
-  # Try function first - use read to handle spaces in paths
+  # Try function - use read to handle spaces in paths
   local func_output source_file
-  func_output=$(declare -F "${1}" 2>/dev/null || true)
+  func_output=$(declare -F "${target}" 2>/dev/null || true)
   if [[ -n "$func_output" ]]; then
     # Read the three fields: function_name line_number source_file
     read -r _ _ source_file <<< "$func_output"
@@ -27,14 +41,14 @@ _mt_cd() {
   fi
 
   # Try executable
-  exec_path=$(which "${1}" 2>/dev/null)
+  exec_path=$(which "${target}" 2>/dev/null)
   if [[ -n $exec_path ]]; then
     # Resolve symlinks before changing directory
     cd "$(dirname "$(realpath "$exec_path")")"
     return
   fi
 
-  echo "Error: '${1}' not found" >&2
+  echo "Error: '${target}' not found" >&2
   return 1
 }
 
