@@ -11,6 +11,7 @@ mt git push [directory|file] [options]
 ## Options
 
 ```
+-a, --all       Push all branches (default: current branch only)
 -h, --help      Show this help
 -n, --dry-run   Show what would be pushed without executing
 -f, --force     Force push (uses --force-with-lease for safety)
@@ -20,8 +21,11 @@ mt git push [directory|file] [options]
 ## Examples
 
 ```bash
-# Push all repos from discovered .repos.txt
+# Push current branch for all repos
 mt git push
+
+# Push all branches for all repos
+mt git push --all
 
 # Push repos from .repos.txt in directory
 mt git push ~/projects/
@@ -49,12 +53,18 @@ Uses the same `.repos.txt` format as `mt git pull`. See `mt git pull --help` for
 - Force push uses `--force-with-lease` for safety
 
 **Status Messages**:
-- `pushed` - Changes pushed to remote
+- `pushed` - Current branch pushed to remote
+- `pushed-all` - All branches pushed to remote
 - `current` - Nothing to push, already up to date
 - `behind` - Repository behind remote, pull first
 - `diverged` - Needs --force or manual merge
 - `dirty` - Has uncommitted changes
 - `detached` - In detached HEAD state
+
+## Environment Variables
+
+- `MT_PULL_FILE` - Override repos file name (disables auto-discovery)
+- `MT_GIT_PUSH_ALL` - Set to `true` to push all branches by default
 
 ## See Also
 
