@@ -1,10 +1,16 @@
 # Functions for git operations
 
+# Source git submodules
+source "${MT_ROOT}/lib/git/manifest.sh"
+source "${MT_ROOT}/lib/git/common.sh"
+source "${MT_ROOT}/lib/git/pull.sh"
+source "${MT_ROOT}/lib/git/push.sh"
+
 # Main git command dispatcher
 _mt_git() {
   local subcommand="${1:-}"
   shift || true
-  
+
   case "$subcommand" in
     clone)
       _mt_clone "$@"
@@ -13,8 +19,11 @@ _mt_git() {
       # Go directly to discover since it's the only subcommand
       _mt_repos_discover "$@"
       ;;
-    sync)
-      _mt_sync "$@"
+    pull)
+      _mt_git_pull "$@"
+      ;;
+    push)
+      _mt_git_push "$@"
       ;;
     add)
       _mt_git_add "$@"
@@ -28,8 +37,9 @@ _mt_git() {
       echo "Commands:"
       echo "  add [REPO] [ALIAS]   Add repository to nearest .repos.txt file"
       echo "  clone URL [PATH]     Clone a git repository to a canonical location"
+      echo "  pull [DIR|FILE]      Fetch and pull repositories from .repos.txt manifest"
+      echo "  push [DIR|FILE]      Push local commits for repositories in .repos.txt manifest"
       echo "  repos                List git repositories"
-      echo "  sync [DIR|FILE]      Sync repositories from repos.txt manifest file"
       echo "  trusted [PATH]       Check if repository is trusted or list patterns"
       echo ""
       return 1
@@ -239,13 +249,13 @@ EOF
   
   # Find repos.txt file
   local repos_file
-  if ! repos_file=$(_mt_find_repos_file); then
+  if ! repos_file=$(_mt_git_manifest_find); then
     # No repos.txt found, offer to create one
     if ! _mt_prompt_create_repos_file; then
       return 1
     fi
     # Try finding again after creation
-    if ! repos_file=$(_mt_find_repos_file); then
+    if ! repos_file=$(_mt_git_manifest_find); then
       _mt_error "Failed to find or create .repos.txt"
       return 1
     fi

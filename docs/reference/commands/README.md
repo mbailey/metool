@@ -12,9 +12,10 @@ Alphabetical index of all mt commands:
 - [install](install.md) - Symlink package directories (bin, config, shell)
 - [modules](modules.md) - List all metool modules
 - [packages](packages.md) - List all metool packages
+- [pull](pull.md) - Fetch and pull repositories from manifest files
+- [push](push.md) - Push local commits for repositories in manifest files
 - [reload](reload.md) - Reload metool after updates
 - [repos](repos.md) - Discover and manage git repositories
-- [sync](sync.md) - Sync repositories from manifest files
 - [update](update.md) - Update metool from git
 
 ## Command Categories
@@ -34,10 +35,11 @@ Alphabetical index of all mt commands:
 - `mt cd` - Navigate to locations
 
 ### Repository Management
-- `mt git` - Git repository management (add, clone, repos, sync, trusted)
+- `mt git` - Git repository management (add, clone, pull, push, repos, trusted)
+- `mt git pull` - Fetch and pull repositories from manifest files
+- `mt git push` - Push local commits for repositories
 - `mt clone` - Clone repositories
 - `mt repos` - Discover repositories
-- `mt sync` - Sync from manifest files
 
 ### Maintenance
 - `mt update` - Update metool

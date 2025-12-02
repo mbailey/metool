@@ -122,7 +122,7 @@ _mt_completions() {
     COMPREPLY=($(compgen -W "${deps_flags}" -- "${cur}"))
   elif [[ ${prev} == "git" ]]; then
     # Complete with git subcommands
-    local git_subcommands="add clone repos sync trusted"
+    local git_subcommands="add clone pull push repos trusted"
     COMPREPLY=($(compgen -W "${git_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "repos" ]]; then
     # Complete with repos flags directly (no subcommands)
@@ -131,14 +131,24 @@ _mt_completions() {
     # Also add directory completion
     local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${dirs[@]}")
-  elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "sync" ]]; then
-    # Complete with sync flags, directories and repos.txt files
-    local sync_flags="--file --dry-run --default-strategy --protocol --verbose --force --help"
-    COMPREPLY=($(compgen -W "${sync_flags}" -- "${cur}"))
+  elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "pull" ]]; then
+    # Complete with pull flags, directories and repos.txt files
+    local pull_flags="--quick --dry-run --protocol --verbose --help"
+    COMPREPLY=($(compgen -W "${pull_flags}" -- "${cur}"))
     # Also add directory completion
     local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${dirs[@]}")
-    # Add repos.txt file completion  
+    # Add repos.txt file completion
+    local txtfiles=($(compgen -f -X '!*.txt' -- "${cur}" 2>/dev/null))
+    COMPREPLY+=("${txtfiles[@]}")
+  elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "push" ]]; then
+    # Complete with push flags, directories and repos.txt files
+    local push_flags="--dry-run --force --verbose --help"
+    COMPREPLY=($(compgen -W "${push_flags}" -- "${cur}"))
+    # Also add directory completion
+    local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
+    COMPREPLY+=("${dirs[@]}")
+    # Add repos.txt file completion
     local txtfiles=($(compgen -f -X '!*.txt' -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${txtfiles[@]}")
   elif [[ ${COMP_WORDS[1]} == "git" && ${prev} == "trusted" ]]; then
@@ -148,31 +158,32 @@ _mt_completions() {
     # Also add directory completion
     local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
     COMPREPLY+=("${dirs[@]}")
-  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "sync" ]]; then
-    # Handle git sync subcommand arguments
+  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "pull" ]]; then
+    # Handle git pull subcommand arguments
     case "${prev}" in
-      --file)
-        # Complete with files
-        COMPREPLY=($(compgen -f -- "${cur}"))
-        ;;
-      --default-strategy)
-        # Complete with strategy options
-        COMPREPLY=($(compgen -W "shared local" -- "${cur}"))
-        ;;
-      --protocol)
+      --protocol|-p)
         # Complete with protocol options
         COMPREPLY=($(compgen -W "git https" -- "${cur}"))
         ;;
       *)
         # Complete with directories, files, and remaining flags
-        local sync_flags="--file --dry-run --default-strategy --protocol --verbose --force --help"
-        COMPREPLY=($(compgen -W "${sync_flags}" -- "${cur}"))
+        local pull_flags="--quick --dry-run --protocol --verbose --help"
+        COMPREPLY=($(compgen -W "${pull_flags}" -- "${cur}"))
         local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
         COMPREPLY+=("${dirs[@]}")
         local txtfiles=($(compgen -f -X '!*.txt' -- "${cur}" 2>/dev/null))
         COMPREPLY+=("${txtfiles[@]}")
         ;;
     esac
+  elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "push" ]]; then
+    # Handle git push subcommand arguments
+    # Complete with directories, files, and remaining flags
+    local push_flags="--dry-run --force --verbose --help"
+    COMPREPLY=($(compgen -W "${push_flags}" -- "${cur}"))
+    local dirs=($(compgen -d -- "${cur}" 2>/dev/null))
+    COMPREPLY+=("${dirs[@]}")
+    local txtfiles=($(compgen -f -X '!*.txt' -- "${cur}" 2>/dev/null))
+    COMPREPLY+=("${txtfiles[@]}")
   elif [[ ${COMP_WORDS[1]} == "git" && ${COMP_WORDS[2]} == "clone" ]]; then
     # Handle git clone subcommand arguments
     case "${prev}" in
