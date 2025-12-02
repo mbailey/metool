@@ -184,6 +184,27 @@ _mt_stow() {
       # First, create an intermediate directory for configs
       command mkdir -p "${MT_PKG_DIR}/config/${pkg_name}"
 
+      # Pre-check: update symlinks that resolve to same content but have different paths
+      # This handles package relocations gracefully
+      local config_target_dir="${MT_PKG_DIR}/config/${pkg_name}"
+      for config_file in "${pkg_path}/config/"*; do
+        [[ -e "$config_file" ]] || continue
+        local config_name
+        config_name=$(basename "$config_file")
+        local existing_link="${config_target_dir}/${config_name}"
+
+        if [[ -L "$existing_link" ]]; then
+          local existing_real new_real
+          existing_real=$(realpath "$existing_link" 2>/dev/null)
+          new_real=$(realpath "$config_file" 2>/dev/null)
+
+          if [[ "$existing_real" == "$new_real" ]] && [[ -n "$existing_real" ]]; then
+            # Same destination, different path - safe to remove and let stow recreate
+            rm "$existing_link"
+          fi
+        fi
+      done
+
       # Stow from package to metool config dir
       if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${pkg_path}" --target="${MT_PKG_DIR}/config/${pkg_name}" config &>/tmp/mt_stow_output; then
         # Now stow from metool config dir to HOME
@@ -272,6 +293,27 @@ _mt_stow() {
     # Handle shell/
     if [[ -d "${pkg_path}/shell" ]]; then
       command mkdir -p "${MT_PKG_DIR}/shell/${pkg_name}"
+
+      # Pre-check: update symlinks that resolve to same content but have different paths
+      local shell_target_dir="${MT_PKG_DIR}/shell/${pkg_name}"
+      for shell_file in "${pkg_path}/shell/"*; do
+        [[ -e "$shell_file" ]] || continue
+        local shell_name
+        shell_name=$(basename "$shell_file")
+        local existing_link="${shell_target_dir}/${shell_name}"
+
+        if [[ -L "$existing_link" ]]; then
+          local existing_real new_real
+          existing_real=$(realpath "$existing_link" 2>/dev/null)
+          new_real=$(realpath "$shell_file" 2>/dev/null)
+
+          if [[ "$existing_real" == "$new_real" ]] && [[ -n "$existing_real" ]]; then
+            # Same destination, different path - safe to remove and let stow recreate
+            rm "$existing_link"
+          fi
+        fi
+      done
+
       if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${pkg_path}" --target="${MT_PKG_DIR}/shell/${pkg_name}" shell &>/tmp/mt_stow_output; then
         pkg_status+="${MT_COLOR_INFO}shell${MT_COLOR_RESET} "
       else
