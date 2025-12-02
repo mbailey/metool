@@ -70,20 +70,112 @@ _mt_stow() {
 
   # Process each directory
   for pkg_path in "${pkg_paths[@]}"; do
-    pkg_name="$(basename "$pkg_path")"
+    # Determine package name - prefer working set name over directory name
+    # This ensures bin symlinks use the working set symlink path
+    local pkg_name=""
+
+    # Check if there's a symlink in packages/ that points to this path
+    if [[ -d "${MT_PKG_DIR}/packages" ]]; then
+      local real_pkg_path
+      real_pkg_path=$(realpath "$pkg_path" 2>/dev/null)
+      for ws_link in "${MT_PKG_DIR}/packages/"*; do
+        [[ -L "$ws_link" ]] || continue
+        local ws_target
+        ws_target=$(realpath "$ws_link" 2>/dev/null)
+        if [[ "$ws_target" == "$real_pkg_path" ]]; then
+          pkg_name=$(basename "$ws_link")
+          break
+        fi
+      done
+    fi
+
+    # Fall back to directory name if not found in working set
+    if [[ -z "$pkg_name" ]]; then
+      pkg_name="$(basename "$pkg_path")"
+    fi
+
     local pkg_status=""
     local pkg_had_error=false
 
     # Handle bin/
+    # Create symlinks through packages/ directory for cleaner package management
+    # This allows package location changes without updating individual bin symlinks
     if [[ -d "${pkg_path}/bin" ]]; then
       command mkdir -p "${MT_PKG_DIR}/bin"
-      if command stow ${stow_opts[@]+"${stow_opts[@]}"} --dir="${pkg_path}" --target="${MT_PKG_DIR}/bin" bin &>/tmp/mt_stow_output; then
-        pkg_status+="${MT_COLOR_INFO}bin${MT_COLOR_RESET} "
-      else
+      local bin_had_error=false
+      local bin_created=0
+      local bin_conflict=0
+      local bin_conflicts=()
+
+      for bin_file in "${pkg_path}/bin/"*; do
+        [[ -e "$bin_file" ]] || continue  # Skip if glob didn't match
+        [[ -f "$bin_file" ]] || [[ -L "$bin_file" ]] || continue  # Only files and symlinks
+
+        local bin_name
+        bin_name=$(basename "$bin_file")
+        local target_link="${MT_PKG_DIR}/bin/${bin_name}"
+        local new_target="../packages/${pkg_name}/bin/${bin_name}"
+
+        # Check if symlink already exists
+        if [[ -L "$target_link" ]]; then
+          local existing_target
+          existing_target=$(readlink "$target_link")
+
+          if [[ "$existing_target" == "$new_target" ]]; then
+            # Already correct, skip
+            ((bin_created++))
+            continue
+          fi
+
+          # Check if existing symlink points to same ultimate destination
+          local existing_real new_real
+          existing_real=$(realpath "$target_link" 2>/dev/null)
+          new_real=$(realpath "${MT_PKG_DIR}/packages/${pkg_name}/bin/${bin_name}" 2>/dev/null)
+
+          if [[ "$existing_real" == "$new_real" ]] && [[ -n "$existing_real" ]]; then
+            # Same destination, just different path - safe to update
+            rm "$target_link"
+            if ln -s "$new_target" "$target_link"; then
+              ((bin_created++))
+            else
+              bin_had_error=true
+              bin_conflicts+=("$bin_name (failed to create)")
+            fi
+          else
+            # Different destination - conflict
+            ((bin_conflict++))
+            bin_conflicts+=("$bin_name -> $existing_target")
+            bin_had_error=true
+          fi
+        elif [[ -e "$target_link" ]]; then
+          # Regular file exists - conflict
+          ((bin_conflict++))
+          bin_conflicts+=("$bin_name (regular file)")
+          bin_had_error=true
+        else
+          # No conflict, create symlink
+          if ln -s "$new_target" "$target_link"; then
+            ((bin_created++))
+          else
+            bin_had_error=true
+            bin_conflicts+=("$bin_name (failed to create)")
+          fi
+        fi
+      done
+
+      if $bin_had_error; then
         pkg_status+="${MT_COLOR_ERROR}bin${MT_COLOR_RESET} "
         pkg_had_error=true
         had_errors=true
-        command cat /tmp/mt_stow_output | sed "s/^/[${pkg_name}:bin] /" >&2
+        if [[ ${#bin_conflicts[@]} -gt 0 ]]; then
+          echo "[${pkg_name}:bin] Conflicts detected:" >&2
+          for conflict in "${bin_conflicts[@]}"; do
+            echo "[${pkg_name}:bin]   * $conflict" >&2
+          done
+          echo "[${pkg_name}:bin] Use 'mt package install --force' to override" >&2
+        fi
+      else
+        pkg_status+="${MT_COLOR_INFO}bin${MT_COLOR_RESET} "
       fi
     fi
 
