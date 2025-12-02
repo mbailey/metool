@@ -397,7 +397,13 @@ _mt_sync_shared_repo() {
   else
     # Repository exists, check if it needs updating
     _mt_debug "Repository exists at: $git_repo_path"
-    
+
+    # Fetch all branches from remote to ensure we have latest refs
+    echo "[INFO] Fetching all branches..." >&2
+    if ! git -C "$git_repo_path" fetch --all --quiet 2>/dev/null; then
+      _mt_debug "Failed to fetch from remote (may be offline or no remote configured)"
+    fi
+
     # Check if repository needs updating
     # Use mocked check function if available (for tests), otherwise use real function
     local repo_status
@@ -410,11 +416,19 @@ _mt_sync_shared_repo() {
       if repo_status_output=$(_mt_check_repo_updates "$git_repo_path" 2>/dev/null); then
         repo_status=$(echo "$repo_status_output" | cut -f1)
       else
-        # Fallback to simple check
+        # Fallback to simple check - compare local and remote HEAD
         if command -v git >/dev/null 2>&1 && [[ -d "$git_repo_path/.git" ]]; then
-          # Simple check - just see if we're behind remote
-          if git -C "$git_repo_path" fetch --dry-run 2>/dev/null | command grep -q -- "->"; then
-            repo_status="behind"
+          local current_branch
+          current_branch=$(git -C "$git_repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null)
+          if [[ -n "$current_branch" && "$current_branch" != "HEAD" ]]; then
+            local local_head remote_head
+            local_head=$(git -C "$git_repo_path" rev-parse HEAD 2>/dev/null)
+            remote_head=$(git -C "$git_repo_path" rev-parse "origin/$current_branch" 2>/dev/null)
+            if [[ -n "$remote_head" && "$local_head" != "$remote_head" ]]; then
+              repo_status="behind"
+            else
+              repo_status="current"
+            fi
           else
             repo_status="current"
           fi
