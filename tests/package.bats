@@ -436,3 +436,108 @@ teardown() {
   [ $status -eq 0 ]
   [[ "$output" =~ "Summary: 2 uninstalled, 0 failed" ]]
 }
+
+# MT-31: Bin symlink architecture tests
+
+@test "package: bin symlinks point through packages directory" {
+  # Create package with bin
+  local package_dir="${TEST_DIR}/test-package"
+  mkdir -p "${package_dir}/bin"
+  echo "#!/bin/bash" > "${package_dir}/bin/test-cmd"
+  chmod +x "${package_dir}/bin/test-cmd"
+  ln -s "${package_dir}" "${MT_PACKAGES_DIR}/test-package"
+
+  # Install package
+  run _mt_stow "${package_dir}"
+  [ $status -eq 0 ]
+
+  # Verify symlink points through packages/
+  local target
+  target=$(readlink "${MT_PKG_DIR}/bin/test-cmd")
+  [[ "$target" == "../packages/test-package/bin/test-cmd" ]]
+}
+
+@test "package: bin symlinks resolve to correct file" {
+  # Create package with bin
+  local package_dir="${TEST_DIR}/test-package"
+  mkdir -p "${package_dir}/bin"
+  echo "#!/bin/bash" > "${package_dir}/bin/test-cmd"
+  echo 'echo "Hello from test"' >> "${package_dir}/bin/test-cmd"
+  chmod +x "${package_dir}/bin/test-cmd"
+  ln -s "${package_dir}" "${MT_PACKAGES_DIR}/test-package"
+
+  # Install package
+  run _mt_stow "${package_dir}"
+  [ $status -eq 0 ]
+
+  # Verify symlink resolves correctly
+  # Use realpath on both sides to handle macOS /private/tmp vs /tmp
+  local resolved expected
+  resolved=$(realpath "${MT_PKG_DIR}/bin/test-cmd")
+  expected=$(realpath "${package_dir}/bin/test-cmd")
+  [[ "$resolved" == "$expected" ]]
+}
+
+@test "package: package relocation updates bin commands without reinstall" {
+  # Create original package location
+  local original_dir="${TEST_DIR}/original-location/test-package"
+  mkdir -p "${original_dir}/bin"
+  echo "#!/bin/bash" > "${original_dir}/bin/test-cmd"
+  echo 'echo "original"' >> "${original_dir}/bin/test-cmd"
+  chmod +x "${original_dir}/bin/test-cmd"
+
+  # Add to working set
+  ln -s "${original_dir}" "${MT_PACKAGES_DIR}/test-package"
+
+  # Install package
+  run _mt_stow "${original_dir}"
+  [ $status -eq 0 ]
+
+  # Verify initial install works
+  local output1
+  output1=$("${MT_PKG_DIR}/bin/test-cmd")
+  [[ "$output1" == "original" ]]
+
+  # Create new package location
+  local new_dir="${TEST_DIR}/new-location/test-package"
+  mkdir -p "${new_dir}/bin"
+  echo "#!/bin/bash" > "${new_dir}/bin/test-cmd"
+  echo 'echo "relocated"' >> "${new_dir}/bin/test-cmd"
+  chmod +x "${new_dir}/bin/test-cmd"
+
+  # Update the packages/ symlink (simulating package move)
+  rm "${MT_PACKAGES_DIR}/test-package"
+  ln -s "${new_dir}" "${MT_PACKAGES_DIR}/test-package"
+
+  # WITHOUT reinstalling, verify command now uses new location
+  local output2
+  output2=$("${MT_PKG_DIR}/bin/test-cmd")
+  [[ "$output2" == "relocated" ]]
+}
+
+@test "package: stow auto-updates same-destination symlinks" {
+  # Create package
+  local package_dir="${TEST_DIR}/test-package"
+  mkdir -p "${package_dir}/bin"
+  echo "#!/bin/bash" > "${package_dir}/bin/test-cmd"
+  chmod +x "${package_dir}/bin/test-cmd"
+  ln -s "${package_dir}" "${MT_PACKAGES_DIR}/test-package"
+
+  # Create old-style symlink (pointing directly to package)
+  mkdir -p "${MT_PKG_DIR}/bin"
+  ln -s "${package_dir}/bin/test-cmd" "${MT_PKG_DIR}/bin/test-cmd"
+
+  # Verify old-style symlink exists
+  local old_target
+  old_target=$(readlink "${MT_PKG_DIR}/bin/test-cmd")
+  [[ "$old_target" != "../packages/test-package/bin/test-cmd" ]]
+
+  # Run stow - should auto-update the symlink
+  run _mt_stow "${package_dir}"
+  [ $status -eq 0 ]
+
+  # Verify symlink was updated to new style
+  local new_target
+  new_target=$(readlink "${MT_PKG_DIR}/bin/test-cmd")
+  [[ "$new_target" == "../packages/test-package/bin/test-cmd" ]]
+}
