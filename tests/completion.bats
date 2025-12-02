@@ -23,31 +23,33 @@ teardown() {
   rm -rf "${TMPDIR}"
 }
 
-@test "mt git sync command completion" {
-  COMP_WORDS=(mt git sy)
+@test "mt git pull command completion" {
+  COMP_WORDS=(mt git pu)
   COMP_CWORD=2
   _mt_completions
-  
-  # Should complete to sync
-  [[ " ${COMPREPLY[*]} " =~ " sync " ]]
+
+  # Should complete to pull and push
+  [[ " ${COMPREPLY[*]} " =~ " pull " ]]
+  [[ " ${COMPREPLY[*]} " =~ " push " ]]
 }
 
-@test "mt git sync completion includes flags" {
-  COMP_WORDS=(mt git sync --)
+@test "mt git pull completion includes flags" {
+  COMP_WORDS=(mt git pull --)
   COMP_CWORD=3
   _mt_completions
-  
-  # Should include sync-specific flags
+
+  # Should include pull-specific flags
   [[ " ${COMPREPLY[*]} " =~ " --dry-run " ]]
-  [[ " ${COMPREPLY[*]} " =~ " --file " ]]
-  [[ " ${COMPREPLY[*]} " =~ " --default-strategy " ]]
+  [[ " ${COMPREPLY[*]} " =~ " --quick " ]]
+  [[ " ${COMPREPLY[*]} " =~ " --protocol " ]]
 }
 
-@test "mt git sync --default-strategy completion includes strategies" {
-  COMP_WORDS=(mt git sync --default-strategy sh)
-  COMP_CWORD=4
+@test "mt git push completion includes flags" {
+  COMP_WORDS=(mt git push --)
+  COMP_CWORD=3
   _mt_completions
-  
-  # Should complete strategy options
-  [[ " ${COMPREPLY[*]} " =~ " shared " ]]
+
+  # Should include push-specific flags
+  [[ " ${COMPREPLY[*]} " =~ " --dry-run " ]]
+  [[ " ${COMPREPLY[*]} " =~ " --force " ]]
 }

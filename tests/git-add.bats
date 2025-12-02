@@ -18,7 +18,8 @@ setup() {
   # Source the required files
   source "${MT_ROOT}/lib/colors.sh"
   source "${MT_ROOT}/lib/functions.sh"
-  source "${MT_ROOT}/lib/sync.sh"
+  source "${MT_ROOT}/lib/git/manifest.sh"
+  source "${MT_ROOT}/lib/git/common.sh"
   source "${MT_ROOT}/lib/git.sh"
   
   # Mock log functions
