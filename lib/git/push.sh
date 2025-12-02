@@ -5,6 +5,7 @@
 #   $1 - repository spec (e.g., "user/repo")
 #   $2 - target name (directory name / symlink)
 #   $3 - force push (true/false)
+#   $4 - push all branches (true/false)
 # Returns:
 #   0 on success, 1 on failure
 # Output:
@@ -13,6 +14,7 @@ _mt_git_push_repo() {
   local repo_spec="${1:?repository spec required}"
   local target_name="${2:?target name required}"
   local force="${3:-false}"
+  local push_all="${4:-false}"
 
   # Extract repository URL (ignore version for push)
   local repo_url
@@ -91,29 +93,43 @@ _mt_git_push_repo() {
       ;;
   esac
 
-  # Get current branch
-  local current_branch
-  current_branch=$(git -C "$git_repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null)
-
-  if [[ -z "$current_branch" || "$current_branch" == "HEAD" ]]; then
-    _mt_warning "Cannot determine current branch"
-    echo "STATUS:error"
-    return 1
-  fi
-
-  # Push to remote
-  echo "[INFO] Pushing $current_branch to origin..." >&2
+  # Build push arguments
   local push_args=("--quiet")
   [[ "$force" == "true" ]] && push_args+=("--force-with-lease")
 
-  if git -C "$git_repo_path" push "${push_args[@]}" origin "$current_branch" 2>/dev/null; then
-    echo "[INFO] Successfully pushed" >&2
-    echo "STATUS:pushed"
-    return 0
+  if [[ "$push_all" == "true" ]]; then
+    # Push all branches
+    echo "[INFO] Pushing all branches to origin..." >&2
+    if git -C "$git_repo_path" push "${push_args[@]}" --all origin 2>/dev/null; then
+      echo "[INFO] Successfully pushed all branches" >&2
+      echo "STATUS:pushed-all"
+      return 0
+    else
+      _mt_error "Failed to push all branches to origin"
+      echo "STATUS:error"
+      return 1
+    fi
   else
-    _mt_error "Failed to push to origin"
-    echo "STATUS:error"
-    return 1
+    # Push current branch only
+    local current_branch
+    current_branch=$(git -C "$git_repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+    if [[ -z "$current_branch" || "$current_branch" == "HEAD" ]]; then
+      _mt_warning "Cannot determine current branch"
+      echo "STATUS:error"
+      return 1
+    fi
+
+    echo "[INFO] Pushing $current_branch to origin..." >&2
+    if git -C "$git_repo_path" push "${push_args[@]}" origin "$current_branch" 2>/dev/null; then
+      echo "[INFO] Successfully pushed" >&2
+      echo "STATUS:pushed"
+      return 0
+    else
+      _mt_error "Failed to push to origin"
+      echo "STATUS:error"
+      return 1
+    fi
   fi
 }
 
@@ -122,6 +138,7 @@ _mt_git_push_repo() {
 #   $1 - repos file path
 #   $2 - working directory
 #   $3 - force push (true/false)
+#   $4 - push all branches (true/false)
 # Returns:
 #   0 on success (even if some repos failed)
 #   1 on fatal error
@@ -129,6 +146,7 @@ _mt_git_push_process_repos() {
   local repos_file="${1:?repos file required}"
   local work_dir="${2:?working directory required}"
   local force="${3:-false}"
+  local push_all="${4:-false}"
 
   # Track results for summary
   local -a push_results=()
@@ -171,7 +189,7 @@ _mt_git_push_process_repos() {
     _mt_info "Checking: $repo"
 
     local status push_output
-    push_output=$(_mt_git_push_repo "$repo" "$target" "$force" 2>&1)
+    push_output=$(_mt_git_push_repo "$repo" "$target" "$force" "$push_all" 2>&1)
 
     # Extract status from output
     status=$(echo "$push_output" | command grep "^STATUS:" | cut -d: -f2)
@@ -199,6 +217,7 @@ _mt_git_push() {
   local work_dir=""
   local dry_run=false
   local force=false
+  local push_all="${MT_GIT_PUSH_ALL:-false}"
   local show_help=false
 
   # Check for help first
@@ -225,13 +244,15 @@ Arguments:
   directory|file    Path to directory containing repos file or path to specific file
 
 Options:
+  -a, --all                 push all branches (default: current branch only)
   -n, --dry-run             show what would be pushed without executing
   -f, --force               force push (uses --force-with-lease for safety)
   -v, --verbose             detailed output
   -h, --help                show this help
 
 Examples:
-  mt git push                        # push all repos from discovered .repos.txt
+  mt git push                        # push current branch for all repos
+  mt git push --all                  # push all branches for all repos
   mt git push ~/projects/            # push repos from .repos.txt in directory
   mt git push ~/projects/.repos.txt  # push repos from specific manifest file
   mt git push --dry-run              # preview what would be pushed
@@ -243,6 +264,7 @@ Notes:
 
 Environment Variables:
   MT_PULL_FILE              override repos file name (disables auto-discovery)
+  MT_GIT_PUSH_ALL           set to 'true' to push all branches by default
 EOF
     return 0
   fi
@@ -252,6 +274,10 @@ EOF
     case $1 in
       -h|--help)
         show_help=true
+        shift
+        ;;
+      -a|--all)
+        push_all=true
         shift
         ;;
       -n|--dry-run)
@@ -374,12 +400,15 @@ EOF
   # Process the repositories
   _mt_info "Processing repositories from: $repos_file"
   _mt_info "Working directory: $work_dir"
+  if [[ "$push_all" == "true" ]]; then
+    _mt_info "Push all branches mode enabled"
+  fi
   if [[ "$force" == "true" ]]; then
     _mt_warning "Force mode enabled - will use --force-with-lease"
   fi
 
   local result=0
-  if ! _mt_git_push_process_repos "$repos_file" "$work_dir" "$force"; then
+  if ! _mt_git_push_process_repos "$repos_file" "$work_dir" "$force" "$push_all"; then
     result=1
   fi
 
