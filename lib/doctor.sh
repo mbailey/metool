@@ -481,6 +481,65 @@ _mt_doctor_installed() {
 }
 
 # ==============================================================================
+# Bin Symlink Architecture Check
+# ==============================================================================
+
+_mt_doctor_bin_symlinks() {
+  _mt_doctor_header "Bin Symlink Architecture:"
+
+  local old_style_count=0
+  local new_style_count=0
+  local old_style_packages=()
+
+  # Check bin symlinks
+  local bin_dir="${MT_PKG_DIR}/bin"
+  [[ -d "$bin_dir" ]] || {
+    _mt_doctor_info "No bin directory"
+    return
+  }
+
+  while IFS= read -r link; do
+    [[ -L "$link" ]] || continue
+
+    local target
+    target=$(readlink "$link")
+
+    # Check if symlink uses new-style (through packages/)
+    if [[ "$target" == ../packages/* ]]; then
+      ((new_style_count++))
+    else
+      # Old-style symlink - points directly to package source
+      ((old_style_count++))
+
+      # Extract package name from old path for recommendation
+      # Old paths look like: ../../Code/github.com/mbailey/metool-packages-dev/git/bin/git-authors
+      local pkg_name
+      pkg_name=$(echo "$target" | sed -E 's|.*/([^/]+)/bin/.*|\1|')
+      if [[ -n "$pkg_name" ]] && [[ ! " ${old_style_packages[*]} " =~ " ${pkg_name} " ]]; then
+        old_style_packages+=("$pkg_name")
+      fi
+    fi
+  done < <(find "$bin_dir" -maxdepth 1 -type l 2>/dev/null)
+
+  if [[ $old_style_count -eq 0 ]]; then
+    _mt_doctor_ok "All bin symlinks use new architecture (${new_style_count} symlinks)"
+  else
+    local unique_pkgs="${#old_style_packages[@]}"
+    _mt_doctor_warning "${old_style_count} bin symlinks use old architecture (direct links)" \
+      "Old-style symlinks bypass the packages/ directory, making package moves difficult" \
+      "Reinstall affected packages: ${old_style_packages[*]}"
+
+    if [[ "$DOCTOR_FIX_MODE" == "true" ]]; then
+      echo ""
+      echo "  To fix old-style bin symlinks, reinstall the affected packages:"
+      for pkg in "${old_style_packages[@]}"; do
+        echo "    mt package install --force ${pkg}"
+      done
+    fi
+  fi
+}
+
+# ==============================================================================
 # Stow Conflict Detection
 # ==============================================================================
 
@@ -744,6 +803,7 @@ EOF
   _mt_doctor_working_set
   _mt_doctor_skills
   _mt_doctor_installed
+  _mt_doctor_bin_symlinks
   _mt_doctor_conflicts
 
   # Show summary
