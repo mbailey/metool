@@ -1,6 +1,6 @@
 ---
 name: metool
-description: Package management system for organizing, installing, and managing shell scripts, dotfiles, and development tools. Use this skill when creating, modifying, reviewing, or installing metool packages, or when working with metool commands and package structure.
+description: Package management system for organizing, installing, and managing shell scripts, dotfiles, and development tools. This skill should be used when creating, modifying, reviewing, or installing metool packages, working with metool commands and package structure, or creating Claude Code skills for metool packages.
 ---
 
 # Metool Package Management
@@ -18,6 +18,8 @@ Use this skill when:
 - Working with metool commands (install, cd, edit, etc.)
 - Setting up configuration files or dotfiles via metool
 - Managing shell functions, aliases, or executables
+- Creating or updating Claude Code skills for metool packages
+- Adding SKILL.md to existing packages
 
 ## Core Concepts
 
@@ -28,6 +30,7 @@ Every metool package follows this standard structure:
 ```
 package-name/
 ├── README.md        # Package documentation (REQUIRED)
+├── SKILL.md         # Claude Code skill (optional, enables AI assistance)
 ├── bin/            # Executable scripts (symlinked to ~/.metool/bin)
 ├── shell/          # Shell functions, aliases, completions
 ├── config/         # Config files (use dot- prefix for dotfiles)
@@ -363,6 +366,174 @@ metool-packages-work/    # Work-specific packages
 3. **Well-Documented** - Include README and inline documentation
 4. **Tested** - Test packages before installing
 5. **Dependencies** - Document and check for dependencies
+
+## Claude Code Skills
+
+Skills extend Claude's capabilities by providing specialized knowledge, workflows, and tools. Metool packages can include a `SKILL.md` file to enable AI assistance for the package's domain.
+
+### What Skills Provide
+
+1. **Specialized workflows** - Multi-step procedures for specific domains
+2. **Tool integrations** - Instructions for working with specific file formats or APIs
+3. **Domain expertise** - Package-specific knowledge, schemas, conventions
+4. **Bundled resources** - Scripts, docs, and assets accessible to Claude
+
+### Human-AI Collaborative Infrastructure
+
+Metool packages with skills create infrastructure that serves both humans and AI:
+
+**For Humans:**
+- Scripts in `bin/` provide CLI tools available in PATH
+- Shell functions and aliases in `shell/` enhance interactive workflows
+- Configuration in `config/` manages dotfiles and settings
+- `README.md` documents the package for human users
+
+**For AI (Claude):**
+- `SKILL.md` provides procedural knowledge and workflow guidance
+- References to `bin/` scripts tell Claude what tools are available
+- Documentation in `docs/` enables progressive disclosure
+- Understanding of `shell/` functions helps Claude guide interactive usage
+
+### SKILL.md Structure
+
+Every skill requires a `SKILL.md` file with YAML frontmatter:
+
+```markdown
+---
+name: package-name
+description: Brief explanation of what the skill does and when to use it. This skill should be used when [specific scenarios].
+---
+
+# Package Name
+
+## Overview
+
+[1-2 sentences explaining what this skill enables]
+
+## When to Use
+
+[Specific triggers and use cases]
+
+## Workflows
+
+[Step-by-step procedures, tool references, examples]
+
+## Resources
+
+[References to bin/ scripts, docs/ files, and other package components]
+```
+
+**Frontmatter Requirements:**
+- `name`: Must be hyphen-case (lowercase letters, digits, hyphens only)
+- `description`: Clear explanation of when Claude should use this skill. Use third-person ("This skill should be used when..." not "Use this skill when...")
+
+### Progressive Disclosure
+
+Skills use a three-level loading system:
+
+1. **Metadata** (~100 words) - Always in context (name + description)
+2. **SKILL.md body** (<5k words) - Loaded when skill triggers
+3. **Package resources** (unlimited) - Loaded as needed by Claude
+
+Scripts in `bin/` can be executed without loading into context, making them token-efficient.
+
+### Adding a Skill to an Existing Package
+
+When adding a skill to an existing metool package:
+
+1. **Create only the SKILL.md file** - Do not overwrite existing README.md or other files
+2. **Reference existing tools** - Review what scripts, functions, and docs already exist
+3. **Adapt to existing structure** - The SKILL.md should work with the package's current organization
+
+Example: Adding a skill to a `git-tools` package that already has `bin/git-branch-clean`:
+
+```markdown
+---
+name: git-tools
+description: Git workflow utilities for branch management and repository maintenance. This skill should be used when cleaning up git branches, managing worktrees, or automating git workflows.
+---
+
+# Git Tools
+
+## Overview
+
+Provides utilities for git branch management and repository maintenance.
+
+## Available Tools
+
+- `git-branch-clean` - Remove merged local branches
+- `git-worktree-list` - List all worktrees with status
+
+## Workflows
+
+### Cleaning Up Branches
+
+To clean up merged branches, run:
+\`\`\`bash
+git-branch-clean
+\`\`\`
+```
+
+### Creating a New Package with Skill
+
+To create a new metool package with skill support:
+
+```bash
+mt package new my-package /path/to/module
+```
+
+This creates a package from the template including `SKILL.md.example`:
+```
+my-package/
+├── README.md           # Human documentation template
+├── SKILL.md.example    # Claude skill template (rename to SKILL.md to activate)
+├── bin/                # Executable scripts directory
+├── shell/              # Shell functions directory
+├── config/             # Configuration files
+└── lib/                # Library functions directory
+```
+
+To enable the skill, rename `SKILL.md.example` to `SKILL.md` and complete the TODOs.
+
+### Skill Commands
+
+Metool provides commands for skill management:
+
+```bash
+# Create a new package (includes SKILL.md.example template)
+mt package new <package-name> [directory]
+
+# Validate package structure and SKILL.md
+mt package validate <package-name|path>
+```
+
+### Documentation Strategy
+
+- **README.md** - Human-facing: installation, usage examples, requirements
+- **SKILL.md** - AI-facing: procedural knowledge, workflows, tool references
+- **docs/** - Shared reference: detailed schemas, APIs, conventions
+
+Avoid duplication between README.md and SKILL.md. Each should serve its audience.
+
+### Writing Effective Skills
+
+**Writing Style:** Use imperative/infinitive form (verb-first instructions), not second person. Write "To accomplish X, do Y" rather than "You should do X".
+
+**Content Guidelines:**
+- Focus on procedural knowledge that Claude cannot infer
+- Reference package tools by their command names (they're in PATH after install)
+- Point to docs/ files for detailed reference material
+- Include concrete examples with realistic scenarios
+- Keep SKILL.md under 5k words; move details to docs/
+
+### Skill Installation
+
+When a package with `SKILL.md` is installed via `mt package install`, metool automatically creates symlinks to make the skill available to Claude Code:
+
+1. Package directory → `~/.metool/skills/<package-name>`
+2. `~/.metool/skills/<package-name>` → `~/.claude/skills/<package-name>`
+
+Claude Code discovers skills by scanning `~/.claude/skills/` for `SKILL.md` files.
 
 ## Troubleshooting
 

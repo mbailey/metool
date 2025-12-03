@@ -34,8 +34,12 @@ fi
 # Find metool installation and export MT_ROOT before sourcing
 # This prevents shell/mt from calculating MT_ROOT incorrectly when sourced from snapshots
 
+# If MT_ROOT is already set, use it (allows explicit override)
+if [[ -n "$MT_ROOT" ]] && [[ -f "$MT_ROOT/shell/mt" ]]; then
+    source "$MT_ROOT/shell/mt"
+
 # Check if already installed in home
-if [[ -d "$HOME/.metool" ]] && [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
+elif [[ -d "$HOME/.metool" ]] && [[ -f "$HOME/.metool/shell/metool/mt" ]]; then
     export MT_ROOT="$HOME/.metool"
     source "$MT_ROOT/shell/metool/mt"
 

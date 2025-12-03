@@ -686,6 +686,9 @@ _mt_package() {
     new)
       _mt_package_new "$@"
       ;;
+    validate)
+      _mt_package_validate "$@"
+      ;;
     -h|--help|"")
       cat <<EOF
 Usage: mt package <command> [options]
@@ -701,6 +704,7 @@ Commands:
   uninstall <package>... [opts]  Uninstall package(s) (remove symlinks)
   service <cmd> <package>        Manage package services (systemd/launchd)
   new NAME [PATH]                Create a new package from template
+  validate <package|path>        Validate package structure and SKILL.md
 
 Install/Uninstall Options:
   --no-bin      Skip bin/ directory
@@ -863,6 +867,173 @@ EOF
   echo "  4. Add your code to bin/, shell/, config/, or lib/"
   echo "  5. Install with: mt install <module>/$package_name"
   echo ""
+}
+
+# Validate package structure and SKILL.md
+_mt_package_validate() {
+  local package_spec="$1"
+  local package_path=""
+  local package_name=""
+  local errors=()
+  local warnings=()
+
+  # Show help if no argument
+  if [[ -z "$package_spec" ]] || [[ "$package_spec" == "-h" ]] || [[ "$package_spec" == "--help" ]]; then
+    cat <<EOF
+Validate package structure and SKILL.md
+
+Usage: mt package validate <package|path>
+
+Validates:
+  - README.md exists (required)
+  - SKILL.md structure if present (frontmatter, name, description)
+  - Executable permissions in bin/
+  - Package naming conventions
+
+Examples:
+  mt package validate my-package         # Package in working set
+  mt package validate ./path/to/package  # Package by path
+  mt package validate .                  # Current directory
+
+EOF
+    return 0
+  fi
+
+  # Resolve package path
+  if [[ -d "$package_spec" ]]; then
+    # Direct path provided
+    package_path="$(cd "$package_spec" && pwd)"
+    package_name="$(basename "$package_path")"
+  elif [[ -L "${MT_PACKAGES_DIR}/${package_spec}" ]]; then
+    # Package in working set
+    package_path="$(readlink -f "${MT_PACKAGES_DIR}/${package_spec}")"
+    package_name="$package_spec"
+  else
+    _mt_error "Package not found: $package_spec"
+    _mt_info "Provide a path or package name from working set"
+    return 1
+  fi
+
+  if [[ ! -d "$package_path" ]]; then
+    _mt_error "Package directory not found: $package_path"
+    return 1
+  fi
+
+  echo "Validating package: $package_name"
+  echo "Path: $package_path"
+  echo ""
+
+  # Check README.md (required)
+  if [[ ! -f "$package_path/README.md" ]]; then
+    errors+=("README.md not found (required for metool packages)")
+  fi
+
+  # Check bin/ executables
+  if [[ -d "$package_path/bin" ]]; then
+    while IFS= read -r -d '' script; do
+      if [[ ! -x "$script" ]]; then
+        warnings+=("Not executable: bin/$(basename "$script")")
+      fi
+    done < <(find "$package_path/bin" -type f -print0 2>/dev/null)
+  fi
+
+  # Check SKILL.md if present
+  if [[ -f "$package_path/SKILL.md" ]]; then
+    _mt_validate_skill "$package_path" "$package_name" errors warnings
+  elif [[ -f "$package_path/SKILL.md.example" ]]; then
+    _mt_info "SKILL.md.example found - rename to SKILL.md to enable skill"
+  fi
+
+  # Check package name convention
+  if [[ ! "$package_name" =~ ^[a-z0-9-]+$ ]]; then
+    warnings+=("Package name should be hyphen-case (lowercase, digits, hyphens)")
+  fi
+
+  # Report results
+  echo ""
+  if [[ ${#errors[@]} -eq 0 ]] && [[ ${#warnings[@]} -eq 0 ]]; then
+    _mt_log INFO "✅ Package is valid"
+    return 0
+  fi
+
+  if [[ ${#warnings[@]} -gt 0 ]]; then
+    echo "Warnings:"
+    for warning in "${warnings[@]}"; do
+      echo "  ⚠️  $warning"
+    done
+  fi
+
+  if [[ ${#errors[@]} -gt 0 ]]; then
+    echo "Errors:"
+    for error in "${errors[@]}"; do
+      echo "  ❌ $error"
+    done
+    return 1
+  fi
+
+  return 0
+}
+
+# Validate SKILL.md structure (internal helper)
+_mt_validate_skill() {
+  local package_path="$1"
+  local package_name="$2"
+  local -n _errors=$3
+  local -n _warnings=$4
+  local skill_file="$package_path/SKILL.md"
+
+  # Read first few lines to check frontmatter
+  local content
+  content=$(<"$skill_file")
+
+  # Check for YAML frontmatter
+  if [[ ! "$content" =~ ^--- ]]; then
+    _errors+=("SKILL.md: No YAML frontmatter (must start with ---)")
+    return
+  fi
+
+  # Extract frontmatter (only the first YAML block between --- markers)
+  local frontmatter
+  frontmatter=$(echo "$content" | awk '/^---$/{if(++n==1)next; if(n==2)exit} n==1{print}')
+
+  if [[ -z "$frontmatter" ]]; then
+    _errors+=("SKILL.md: Invalid frontmatter format (missing closing ---)")
+    return
+  fi
+
+  # Check required fields
+  if ! echo "$frontmatter" | grep -q '^name:'; then
+    _errors+=("SKILL.md: Missing 'name' field in frontmatter")
+  else
+    # Validate name format and match (get first match only)
+    local skill_name
+    skill_name=$(echo "$frontmatter" | grep -m1 '^name:' | sed 's/^name:[[:space:]]*//')
+
+    if [[ ! "$skill_name" =~ ^[a-z0-9-]+$ ]]; then
+      _errors+=("SKILL.md: Name '$skill_name' must be hyphen-case")
+    elif [[ "$skill_name" =~ ^-|-$|-- ]]; then
+      _errors+=("SKILL.md: Name cannot start/end with hyphen or have consecutive hyphens")
+    elif [[ "$skill_name" != "$package_name" ]]; then
+      _warnings+=("SKILL.md: Name '$skill_name' doesn't match package name '$package_name'")
+    fi
+  fi
+
+  if ! echo "$frontmatter" | grep -q '^description:'; then
+    _errors+=("SKILL.md: Missing 'description' field in frontmatter")
+  else
+    local description
+    description=$(echo "$frontmatter" | grep -m1 '^description:' | sed 's/^description:[[:space:]]*//')
+
+    # Check for TODO placeholder
+    if [[ "$description" =~ \[TODO ]] || [[ "$description" =~ ^\[ ]]; then
+      _errors+=("SKILL.md: Description contains TODO placeholder - please complete it")
+    fi
+
+    # Check minimum length
+    if [[ ${#description} -lt 20 ]]; then
+      _warnings+=("SKILL.md: Description is very short (recommend 20+ characters)")
+    fi
+  fi
 }
 
 # Copy template files and replace placeholders
