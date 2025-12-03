@@ -9,10 +9,10 @@
 # 4. (Optional) Private packages module after SSH setup
 #
 # Quick install:
-#   curl -fsSL https://raw.githubusercontent.com/mbailey/metool/main/contrib/bootstrap | bash
+#   curl -fsSL https://raw.githubusercontent.com/mbailey/metool/refs/heads/master/contrib/bootstrap | bash
 #
 # Or with options:
-#   curl -fsSL https://raw.githubusercontent.com/mbailey/metool/main/contrib/bootstrap | bash -s -- --skip-keycutter
+#   curl -fsSL https://raw.githubusercontent.com/mbailey/metool/refs/heads/master/contrib/bootstrap | bash -s -- --skip-keycutter
 #
 set -euo pipefail
 
@@ -36,7 +36,7 @@ header() { echo -e "\n${BOLD}${CYAN}=== $* ===${NC}\n"; }
 SKIP_KEYCUTTER=false
 SKIP_PRIVATE=false
 PRIVATE_MODULE_URL=""
-METOOL_INSTALL_URL="https://raw.githubusercontent.com/mbailey/metool/main/install.sh"
+METOOL_INSTALL_URL="https://raw.githubusercontent.com/mbailey/metool/refs/heads/master/install.sh"
 
 # Parse arguments
 parse_args() {
@@ -81,13 +81,13 @@ Options:
 
 Examples:
     # Full bootstrap (interactive)
-    curl -fsSL https://raw.githubusercontent.com/mbailey/metool/main/contrib/bootstrap | bash
+    curl -fsSL https://raw.githubusercontent.com/mbailey/metool/refs/heads/master/contrib/bootstrap | bash
 
     # Skip keycutter setup
-    curl -fsSL https://raw.githubusercontent.com/mbailey/metool/main/contrib/bootstrap | bash -s -- --skip-keycutter
+    curl -fsSL https://raw.githubusercontent.com/mbailey/metool/refs/heads/master/contrib/bootstrap | bash -s -- --skip-keycutter
 
     # With pre-specified private module
-    curl -fsSL https://raw.githubusercontent.com/mbailey/metool/main/contrib/bootstrap | bash -s -- --private-module git@github.com:user/metool-packages-dev.git
+    curl -fsSL https://raw.githubusercontent.com/mbailey/metool/refs/heads/master/contrib/bootstrap | bash -s -- --private-module git@github.com:user/metool-packages-dev.git
 EOF
 }
 

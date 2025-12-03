@@ -261,9 +261,9 @@ mt "\$@"
 EOF
     chmod +x "$MT_ROOT/bin/mtbin-install"
     
-    # Run metool install using temporary mtbin
+    # Run stow to install metool (bypass package system for bootstrap)
     log "Installing metool..."
-    "$MT_ROOT/bin/mtbin-install" install
+    "$MT_ROOT/bin/mtbin-install" stow "$MT_ROOT"
     
     # Clean up temporary file
     rm "$MT_ROOT/bin/mtbin-install"
