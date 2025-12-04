@@ -503,3 +503,55 @@ copyparty-install
 ```
 
 This example demonstrates all key concepts: structure, dotfile naming, service management, and installation workflow.
+
+## Developing Metool
+
+When working on metool itself (in a worktree or clone), use the `MT_ROOT` environment variable to test changes without affecting the installed version.
+
+### Testing from a Worktree or Clone
+
+The `MT_ROOT` environment variable overrides where `bin/mt` looks for metool:
+
+```bash
+# From a metool worktree or clone directory
+MT_ROOT=$(pwd) ./bin/mt --help
+
+# Run any mt command using the local version
+MT_ROOT=$(pwd) ./bin/mt module list
+MT_ROOT=$(pwd) ./bin/mt package list
+MT_ROOT=$(pwd) ./bin/mt doctor
+```
+
+This works because `bin/mt` checks for `MT_ROOT` first:
+```bash
+# If MT_ROOT is already set, use it (allows explicit override)
+if [[ -n "$MT_ROOT" ]] && [[ -f "$MT_ROOT/shell/mt" ]]; then
+    source "$MT_ROOT/shell/mt"
+```
+
+### Bootstrap Use Case
+
+This pattern enables bootstrapping metool from a temporary location:
+
+```bash
+# Clone to temp
+cd /tmp
+git clone https://github.com/mbailey/metool.git
+cd metool
+
+# Run mt commands before metool is installed
+MT_ROOT=/tmp/metool ./bin/mt module add mbailey/metool-packages
+MT_ROOT=/tmp/metool ./bin/mt package install metool
+```
+
+### Running Tests
+
+When developing, run tests against the local version:
+
+```bash
+# Run bats tests
+bats tests/
+
+# Test specific functionality
+MT_ROOT=$(pwd) ./bin/mt deps --check
+```
