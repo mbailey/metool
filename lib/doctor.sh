@@ -5,17 +5,18 @@
 # Global State for Doctor
 # ==============================================================================
 
-declare -g DOCTOR_ERRORS=0
-declare -g DOCTOR_WARNINGS=0
-declare -g DOCTOR_FIX_MODE=false
-declare -g DOCTOR_YES_MODE=false
-declare -g DOCTOR_VERBOSE=false
-declare -g DOCTOR_JSON=false
+# Initialize globals (bash 3 compatible - no -g flag)
+DOCTOR_ERRORS=0
+DOCTOR_WARNINGS=0
+DOCTOR_FIX_MODE=false
+DOCTOR_YES_MODE=false
+DOCTOR_VERBOSE=false
+DOCTOR_JSON=false
 
-# Arrays to collect issues for summary
-declare -ga DOCTOR_ERROR_MESSAGES=()
-declare -ga DOCTOR_WARNING_MESSAGES=()
-declare -ga DOCTOR_RECOMMENDATIONS=()
+# Arrays to collect issues for summary (bash 3 compatible)
+DOCTOR_ERROR_MESSAGES=()
+DOCTOR_WARNING_MESSAGES=()
+DOCTOR_RECOMMENDATIONS=()
 
 # ==============================================================================
 # Output Helpers
