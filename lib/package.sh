@@ -689,6 +689,9 @@ _mt_package() {
     validate)
       _mt_package_validate "$@"
       ;;
+    diff)
+      _mt_package_diff "$@"
+      ;;
     -h|--help|"")
       cat <<EOF
 Usage: mt package <command> [options]
@@ -705,6 +708,7 @@ Commands:
   service <cmd> <package>        Manage package services (systemd/launchd)
   new NAME [PATH]                Create a new package from template
   validate <package|path>        Validate package structure and SKILL.md
+  diff <pkg> <from> <to>         Compare package between modules
 
 Install/Uninstall Options:
   --no-bin      Skip bin/ directory
@@ -728,6 +732,8 @@ Examples:
   mt package service logs prometheus -f
   mt package remove git-tools
   mt package edit git-tools
+  mt package diff tmux dev pub           # Compare package between modules
+  mt package diff tmux dev pub --content # Show detailed content diff
 
 Note: 'remove' removes from working set, 'uninstall' removes stow symlinks
 
@@ -1068,4 +1074,227 @@ _mt_package_copy_template() {
     mv "$package_dir/config/dot-config/package-name" \
        "$package_dir/config/dot-config/$package_name"
   fi
+}
+
+# Compare package between two modules (git-tracked files only)
+_mt_package_diff() {
+  local package_name=""
+  local from_module=""
+  local to_module=""
+  local show_content=false
+  local quiet=false
+  local include_untracked=false
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -h|--help)
+        cat <<EOF
+Compare a package between two modules (git-tracked files only)
+
+Usage: mt package diff <package> <from-module> <to-module> [options]
+
+Arguments:
+  package      Package name to compare
+  from-module  Source module (e.g., dev)
+  to-module    Target module (e.g., pub)
+
+Options:
+  -c, --content     Show file content differences (default: file list only)
+  -q, --quiet       Only show if packages differ (exit code only)
+  -a, --all         Include untracked files (default: git-tracked only)
+  -h, --help        Show this help message
+
+Examples:
+  mt package diff tmux dev pub           # Compare tmux between dev and pub
+  mt package diff tmux dev pub --content # Show full diff
+  mt package diff git-tools dev pub -q   # Check if packages differ
+  mt package diff tmux dev pub --all     # Include untracked files
+
+Workflow for promoting packages:
+  1. Run diff to see what differs
+  2. Review differences for sensitive content
+  3. Copy approved files: cp -r source/file target/file
+  4. Commit changes in target module
+
+Note: By default, only git-tracked files are compared. Use --all to include
+untracked files (useful for debugging but may show temp/working files).
+
+EOF
+        return 0
+        ;;
+      -c|--content)
+        show_content=true
+        shift
+        ;;
+      -q|--quiet)
+        quiet=true
+        shift
+        ;;
+      -a|--all)
+        include_untracked=true
+        shift
+        ;;
+      -*)
+        _mt_error "Unknown option: $1"
+        return 1
+        ;;
+      *)
+        if [[ -z "$package_name" ]]; then
+          package_name="$1"
+        elif [[ -z "$from_module" ]]; then
+          from_module="$1"
+        elif [[ -z "$to_module" ]]; then
+          to_module="$1"
+        else
+          _mt_error "Too many arguments"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate arguments
+  if [[ -z "$package_name" ]] || [[ -z "$from_module" ]] || [[ -z "$to_module" ]]; then
+    _mt_error "Usage: mt package diff <package> <from-module> <to-module>"
+    _mt_info "Example: mt package diff tmux dev pub"
+    return 1
+  fi
+
+  # Get module paths
+  local from_path="${MT_MODULES_DIR}/${from_module}"
+  local to_path="${MT_MODULES_DIR}/${to_module}"
+
+  # Check modules exist
+  if [[ ! -L "$from_path" ]] || [[ ! -d "$(readlink -f "$from_path")" ]]; then
+    _mt_error "Module not found in working set: $from_module"
+    _mt_info "Add module with: mt module add $from_module"
+    return 1
+  fi
+
+  if [[ ! -L "$to_path" ]] || [[ ! -d "$(readlink -f "$to_path")" ]]; then
+    _mt_error "Module not found in working set: $to_module"
+    _mt_info "Add module with: mt module add $to_module"
+    return 1
+  fi
+
+  # Resolve to actual paths (module root directories)
+  local from_module_root
+  local to_module_root
+  from_module_root="$(readlink -f "$from_path")"
+  to_module_root="$(readlink -f "$to_path")"
+  from_path="${from_module_root}/${package_name}"
+  to_path="${to_module_root}/${package_name}"
+
+  # Check if package exists in source
+  if [[ ! -d "$from_path" ]]; then
+    _mt_error "Package not found in $from_module: $package_name"
+    return 1
+  fi
+
+  # Check if package exists in target
+  if [[ ! -d "$to_path" ]]; then
+    if [[ "$quiet" == "true" ]]; then
+      return 1  # Different (target doesn't exist)
+    fi
+    echo "Package '$package_name' exists in $from_module but not in $to_module"
+    echo ""
+    echo "To create in $to_module:"
+    echo "  cp -r \"$from_path\" \"$(dirname "$to_path")/\""
+    return 1
+  fi
+
+  if [[ "$quiet" != "true" ]]; then
+    echo "Comparing: $package_name"
+    echo "  From: $from_path"
+    echo "  To:   $to_path"
+    if [[ "$include_untracked" != "true" ]]; then
+      echo "  (git-tracked files only, use --all for everything)"
+    fi
+    echo ""
+  fi
+
+  # Get list of files to compare
+  local from_files to_files
+  if [[ "$include_untracked" == "true" ]]; then
+    # All files (original behavior)
+    from_files=$(cd "$from_path" && find . -type f | sed 's|^\./||' | sort)
+    to_files=$(cd "$to_path" && find . -type f | sed 's|^\./||' | sort)
+  else
+    # Git-tracked files only
+    from_files=$(cd "$from_module_root" && git ls-files "$package_name" 2>/dev/null | sed "s|^${package_name}/||" | sort)
+    to_files=$(cd "$to_module_root" && git ls-files "$package_name" 2>/dev/null | sed "s|^${package_name}/||" | sort)
+  fi
+
+  # Find files only in source
+  local only_in_from
+  only_in_from=$(comm -23 <(echo "$from_files") <(echo "$to_files"))
+
+  # Find files only in target
+  local only_in_to
+  only_in_to=$(comm -13 <(echo "$from_files") <(echo "$to_files"))
+
+  # Find common files that differ
+  local common_files differ_files=""
+  common_files=$(comm -12 <(echo "$from_files") <(echo "$to_files"))
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    if ! diff -q "$from_path/$file" "$to_path/$file" &>/dev/null; then
+      differ_files="${differ_files}${file}"$'\n'
+    fi
+  done <<< "$common_files"
+  differ_files="${differ_files%$'\n'}"
+
+  # Check if there are any differences
+  if [[ -z "$only_in_from" ]] && [[ -z "$only_in_to" ]] && [[ -z "$differ_files" ]]; then
+    if [[ "$quiet" != "true" ]]; then
+      _mt_info "✓ Packages are identical"
+    fi
+    return 0
+  fi
+
+  if [[ "$quiet" == "true" ]]; then
+    return 1
+  fi
+
+  # Output differences
+  if [[ -n "$only_in_from" ]]; then
+    echo "Only in $from_module/$package_name:"
+    echo "$only_in_from" | while read -r file; do
+      echo "  $file"
+    done
+    echo ""
+  fi
+
+  if [[ -n "$only_in_to" ]]; then
+    echo "Only in $to_module/$package_name:"
+    echo "$only_in_to" | while read -r file; do
+      echo "  $file"
+    done
+    echo ""
+  fi
+
+  if [[ -n "$differ_files" ]]; then
+    echo "Files that differ:"
+    echo "$differ_files" | while read -r file; do
+      echo "  $file"
+    done
+    echo ""
+  fi
+
+  # Show content diff if requested
+  if [[ "$show_content" == "true" ]] && [[ -n "$differ_files" ]]; then
+    echo "--- Content differences ---"
+    echo "$differ_files" | while read -r file; do
+      [[ -z "$file" ]] && continue
+      echo ""
+      echo "=== $file ==="
+      diff -u "$from_path/$file" "$to_path/$file" 2>/dev/null | \
+        sed -e "s|$from_path|$from_module/$package_name|g" \
+            -e "s|$to_path|$to_module/$package_name|g" || true
+    done
+  fi
+
+  return 1
 }

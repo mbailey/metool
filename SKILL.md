@@ -144,6 +144,32 @@ See @docs/templates/service-package/README.md for:
 - Version detection and monitoring
 - Complete shell aliases pattern
 
+## Package Promotion
+
+Promote packages from development to public modules safely.
+
+### Compare Packages Between Modules
+
+```bash
+# See what differs
+mt package diff tmux dev pub
+
+# Show detailed content differences
+mt package diff tmux dev pub --content
+
+# Quiet mode for scripting
+mt package diff tmux dev pub --quiet
+```
+
+### Promotion Workflow
+
+1. **Compare** - `mt package diff <package> dev pub`
+2. **Review** - Check for sensitive content (secrets, internal paths)
+3. **Promote** - Copy approved files to target module
+4. **Commit** - Commit changes in target module
+
+See `docs/guides/package-promotion.md` for detailed workflow.
+
 ## Claude Code Skills
 
 Packages can include a `SKILL.md` file to enable AI assistance. This creates human-AI collaborative infrastructure where:
@@ -203,6 +229,15 @@ if ! command -v required-tool >/dev/null; then
 fi
 ```
 
+For metool package dependencies:
+```bash
+if ! command -v other-tool >/dev/null; then
+  echo "Error: other-tool from other-package is required" >&2
+  echo "Install with: mt package add module/other-package && mt package install other-package" >&2
+  exit 1
+fi
+```
+
 ## Troubleshooting
 
 ### Conflicts During Installation
@@ -223,3 +258,4 @@ Requires: GNU coreutils, GNU Stow 2.4.0+
 - @docs/reference/commands/README.md - Command reference
 - @docs/templates/service-package/README.md - Service package template
 - @docs/guides/GETTING-STARTED.md - Getting started guide
+- @docs/guides/package-promotion.md - Package promotion workflow

@@ -87,7 +87,7 @@ _mt_completions() {
     fi
   elif [[ ${prev} == "package" ]]; then
     # Complete with package subcommands
-    local package_subcommands="list add remove edit install uninstall service new"
+    local package_subcommands="list add remove edit install uninstall service new validate diff"
     COMPREPLY=($(compgen -W "${package_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "remove" ]]; then
     # Complete with package names for removal
@@ -115,6 +115,23 @@ _mt_completions() {
     COMPREPLY=($(compgen -W "${service_subcommands}" -- "${cur}"))
   elif [[ ${COMP_WORDS[1]} == "package" && ${COMP_WORDS[2]} == "service" ]]; then
     # Complete with package names for service commands
+    _mt_complete_packages
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "diff" ]]; then
+    # First arg after diff: package name
+    if [[ "${cur}" == -* ]]; then
+      COMPREPLY=($(compgen -W "-c --content -q --quiet -a --all --help" -- "${cur}"))
+    else
+      _mt_complete_packages
+    fi
+  elif [[ ${COMP_WORDS[1]} == "package" && ${COMP_WORDS[2]} == "diff" ]]; then
+    # Complete with modules for from/to arguments, or flags
+    if [[ "${cur}" == -* ]]; then
+      COMPREPLY=($(compgen -W "-c --content -q --quiet -a --all --help" -- "${cur}"))
+    else
+      _mt_complete_modules
+    fi
+  elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "validate" ]]; then
+    # Complete with package names or directories for validation
     _mt_complete_packages
   elif [[ ${prev} == "deps" ]]; then
     # Complete with deps flags
