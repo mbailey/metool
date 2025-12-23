@@ -568,19 +568,18 @@ For detailed information, refer to existing metool documentation:
 ### Core Documentation
 - `README.md` - Main metool documentation and quickstart
 - `docs/conventions/package-structure.md` - Complete package structure conventions
-- `docs/reference/commands/` - Individual command documentation
+- `docs/reference/commands/README.md` - Command reference index
+
+### Conventions
+- `docs/conventions/README.md` - All coding and documentation conventions
+- `docs/conventions/documentation/README.md` - Documentation standards and structure
+- `docs/conventions/shell-scripting.md` - Shell scripting best practices
 
 ### Guides
 - `docs/guides/repository-management.md` - Managing repositories with metool
-- `docs/systemd.md` - Systemd service management
-
-### Conventions
-- `docs/conventions/shell-scripting.md` - Shell scripting best practices
-- `docs/conventions/documentation.md` - Documentation standards
-- `docs/conventions/testing.md` - Testing guidelines
 
 ### Templates
-- `docs/templates/service-package/` - Service package template
+- `docs/templates/service-package/README.md` - Service package template
 
 Use the Read tool to load specific documentation files as needed during package development
 

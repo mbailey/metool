@@ -1,18 +1,18 @@
 # Metool Conventions
 
-This directory contains coding conventions and best practices for metool development.
+Coding conventions and best practices for development of metool itself, as well as metool modules and packages.
 
 ## Overview
 
-These conventions ensure consistency across the metool codebase and make it easier for contributors to understand and extend the project.
+These conventions ensure consistency across metool and metool packages, making it easier for contributors and AI agents to understand and extend the project.
 
 ## Conventions
 
 - [Shell Scripting](shell-scripting.md) - Bash coding standards and patterns
 - [Testing](testing.md) - How to write and organize tests
-- [Documentation](documentation.md) - Documentation standards and structure
-- [Documentation Organization](documentation-organization.md) - How to organize documentation files
+- [Documentation](documentation/README.md) - Documentation standards and structure
 - [Package Structure](package-structure.md) - How to structure metool packages
+- [Symlinks](symlinks.md) - Symlink handling conventions
 
 ## General Principles
 
