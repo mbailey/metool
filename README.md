@@ -2,15 +2,15 @@
 alias: metool
 ---
 
-# MeTool (mt) – Modular Code Organization
+# MeTool (mt) – A Propagation Tray for Ideas
 
 ![A place for my code](docs/images/20250721011600.png)
 
-MeTool (`mt`) is a modular system for organizing all your code, scripts, and configuration. Each piece of functionality lives in its own package with a clear structure, making it easy to find, edit, share, and evolve your tools over time.
+MeTool (`mt`) is a modular system for organizing all my code, scripts, and configuration. Each piece of functionality lives in its own package with a clear structure, making it easy to find, edit, share, and evolve my tools over time.
 
-Whether you're capturing a quick shell hack, building a complete application, or managing system services, metool keeps everything organized and accessible—for both humans and AI assistants.
+Whether capturing a quick shell hack, building a complete application, or managing system services, metool keeps everything organized and accessible—for both humans and AI assistants.
 
-Packages can include a `SKILL.md` file that gives AI assistants like Claude Code the knowledge to help you work with that package's tools and workflows.
+Packages can include a `SKILL.md` file that gives AI assistants like Claude Code the knowledge to help work with that package's tools and workflows.
 
 ## Key Features
 
