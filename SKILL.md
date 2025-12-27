@@ -1,13 +1,13 @@
 ---
 name: metool
-description: Package management system for organizing, installing, and managing shell scripts, dotfiles, and development tools. This skill should be used when creating, modifying, reviewing, or installing metool packages, working with metool commands and package structure, or creating Claude Code skills for metool packages.
+description: Package management for modular code organization. This skill should be used when creating, installing, or modifying metool packages, working with package structure conventions, or adding Claude Code skills to packages.
 ---
 
 # Metool Package Management
 
 ## Overview
 
-Metool (mt) is a modular system for managing shell environments through packages. It provides a "propagation tray for ideas" - a place where scripts, functions, and tools can be organized, tested, and evolved before becoming standalone projects.
+Metool (mt) organizes code through packages - self-contained units with scripts, functions, configuration, and documentation. Packages are organized in modules and installed via GNU Stow symlinks. From shell utilities to complete applications, all code follows the same structure.
 
 ## When to Use This Skill
 

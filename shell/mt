@@ -154,6 +154,8 @@ mt() {
       echo
       echo "Core Commands:"
       echo "  cd [TARGET]            Change to MT_ROOT, module, package, or executable"
+      echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
+      echo "  doctor [OPTIONS]       Run system health diagnostics"
       echo "  edit TARGET            Edit function, executable or file"
       echo "  git <subcommand>       Git repository management"
       echo "    add [REPO] [ALIAS]   Add repository to .repos.txt manifest"
@@ -177,10 +179,8 @@ mt() {
       echo "    uninstall PKG [OPTS] Uninstall package (remove symlinks)"
       echo "    new NAME [PATH]      Create new package from template"
       echo "    service CMD PKG      Manage package services"
-      echo "  update                 Update metool from git"
       echo "  reload                 Reload metool"
-      echo "  deps [--install]       Check metool dependencies (--install to auto-install on macOS)"
-      echo "  doctor [OPTIONS]       Run system health diagnostics"
+      echo "  update                 Update metool from git"
       echo "  -h, --help             Show this help message and exit"
       echo
       ;;
