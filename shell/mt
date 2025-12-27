@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # mt - source this file
 
+# Guard against being sourced multiple times during init
+[[ -n "${_MT_SOURCING:-}" ]] && return 0
+
 mt() {
   # Convert DEBUG=1 to MT_LOG_LEVEL=DEBUG
   if [[ -n "${DEBUG:-}" ]]; then
@@ -8,19 +11,16 @@ mt() {
   fi
 
   # Get path to script and root of project
-  # MT_ROOT should be set by bin/mt, but calculate it if not (e.g., when sourced directly)
-  if [[ -z "${MT_ROOT:-}" ]]; then
-    command -v realpath &>/dev/null || {
-      echo "Error: 'realpath' is required but not found. Please install 'coreutils' (e.g. 'brew install coreutils' on macOS)." >&2
-      return 1
-    }
-    SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
-    SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
+  # Always calculate from BASH_SOURCE to handle symlinks correctly
+  command -v realpath &>/dev/null || {
+    echo "Error: 'realpath' is required but not found. Please install 'coreutils' (e.g. 'brew install coreutils' on macOS)." >&2
+    return 1
+  }
+  SCRIPT_PATH="$(realpath "${BASH_SOURCE[0]}")"
+  SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
+  # Only calculate MT_ROOT if not set or if set to a relative path (common bug)
+  if [[ -z "${MT_ROOT:-}" ]] || [[ "${MT_ROOT}" != /* ]]; then
     export MT_ROOT="$(dirname -- "${SCRIPT_DIR}")"
-  else
-    # MT_ROOT already set (by bin/mt), still set SCRIPT_PATH for debugging
-    SCRIPT_PATH="${MT_ROOT}/shell/mt"
-    SCRIPT_DIR="${MT_ROOT}/shell"
   fi
 
   # Load core functions
@@ -80,6 +80,8 @@ mt() {
     _mt_path_prepend "${MT_PKG_DIR}/bin"
 
     # Source all files under MT_PKG_DIR/shell
+    # Set guard to prevent recursive sourcing of this file
+    export _MT_SOURCING=1
     if [[ -d "${MT_PKG_DIR}/shell" ]]; then
       # Detect current shell
       local current_shell=""
@@ -142,6 +144,7 @@ mt() {
         complete -F _complete_alias "${!BASH_ALIASES[@]}"
       fi
     fi
+    unset _MT_SOURCING
 
   else
 

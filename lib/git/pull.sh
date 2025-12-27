@@ -4,6 +4,7 @@
 # Arguments:
 #   $1 - repository spec (e.g., "user/repo" or "user/repo@version")
 #   $2 - target name (directory name for the symlink)
+#   $3 - rebase flag (true/false, optional, defaults to false)
 # Returns:
 #   0 on success, 1 on failure
 # Output:
@@ -11,6 +12,7 @@
 _mt_git_pull_repo() {
   local repo_spec="${1:?repository spec required}"
   local target_name="${2:?target name required}"
+  local do_rebase="${3:-false}"
 
   # Extract repository and version from spec
   local repo_url version=""
@@ -103,7 +105,28 @@ _mt_git_pull_repo() {
         ;;
       diverged)
         echo "Repository has diverged from remote" >&2
-        status="diverged"
+        if [[ "$do_rebase" == "true" ]]; then
+          # Attempt to rebase local commits on top of remote
+          local current_branch
+          current_branch=$(git -C "$git_repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null)
+          if [[ -n "$current_branch" && "$current_branch" != "HEAD" ]]; then
+            echo "[INFO] Attempting rebase..." >&2
+            if git -C "$git_repo_path" pull --rebase --quiet origin "$current_branch" 2>/dev/null; then
+              echo "[INFO] Rebased successfully" >&2
+              status="rebased"
+            else
+              _mt_error "Rebase failed - resolve conflicts manually in $git_repo_path"
+              # Abort the failed rebase to leave repo in clean state
+              git -C "$git_repo_path" rebase --abort 2>/dev/null || true
+              status="rebase-failed"
+            fi
+          else
+            _mt_debug "Repository is in detached HEAD state, cannot rebase"
+            status="diverged"
+          fi
+        else
+          status="diverged"
+        fi
         ;;
       detached)
         echo "Repository is in detached HEAD state" >&2
@@ -211,6 +234,7 @@ _mt_git_pull_repo() {
 #   $1 - repos file path
 #   $2 - working directory
 #   $3 - quick mode (true/false)
+#   $4 - rebase mode (true/false)
 # Returns:
 #   0 on success (even if some repos failed)
 #   1 on fatal error
@@ -218,9 +242,11 @@ _mt_git_pull_process_repos() {
   local repos_file="${1:?repos file required}"
   local work_dir="${2:?working directory required}"
   local quick="${3:-false}"
+  local do_rebase="${4:-false}"
 
   # Track results for summary
   local -a pull_results=()
+  local -a diverged_repos=()
 
   # First pass: collect all repos and categorize them
   local -a repos_to_clone=()
@@ -274,7 +300,7 @@ _mt_git_pull_process_repos() {
       _mt_info "Cloning: $repo -> $target"
 
       local status pull_output actual_ref=""
-      pull_output=$(_mt_git_pull_repo "$repo" "$target" 2>&1)
+      pull_output=$(_mt_git_pull_repo "$repo" "$target" "$do_rebase" 2>&1)
       local result=$?
 
       # Extract status and actual ref from output
@@ -314,7 +340,7 @@ _mt_git_pull_process_repos() {
       _mt_info "Checking: $repo -> $target"
 
       local status pull_output actual_ref=""
-      pull_output=$(_mt_git_pull_repo "$repo" "$target" 2>&1)
+      pull_output=$(_mt_git_pull_repo "$repo" "$target" "$do_rebase" 2>&1)
       local result=$?
 
       # Extract status and actual ref from output
@@ -326,6 +352,11 @@ _mt_git_pull_process_repos() {
       else
         status="error"
         echo "$pull_output"
+      fi
+
+      # Track diverged repos for end-of-run suggestion
+      if [[ "$status" == "diverged" ]]; then
+        diverged_repos+=("$target")
       fi
 
       # Format ref display
@@ -411,6 +442,13 @@ _mt_git_pull_process_repos() {
   # Output summary
   _mt_git_summary "Pull Summary:" "${pull_results[@]}"
 
+  # Show suggestion for diverged repos if any (and rebase wasn't already used)
+  if [[ ${#diverged_repos[@]} -gt 0 ]] && [[ "$do_rebase" != "true" ]]; then
+    echo
+    _mt_info "Tip: ${#diverged_repos[@]} repo(s) have diverged. Run with --rebase to sync them:"
+    echo "  mt git pull --rebase"
+  fi
+
   return 0
 }
 
@@ -423,13 +461,14 @@ _mt_git_pull() {
   fi
 
   # Extract parsed values
-  local repos_file work_dir dry_run quick show_help
+  local repos_file work_dir dry_run quick rebase show_help
   while IFS= read -r line; do
     case "$line" in
       REPOS_FILE=*) repos_file="${line#*=}" ;;
       WORK_DIR=*) work_dir="${line#*=}" ;;
       DRY_RUN=*) dry_run="${line#*=}" ;;
       QUICK=*) quick="${line#*=}" ;;
+      REBASE=*) rebase="${line#*=}" ;;
       SHOW_HELP=*) show_help="${line#*=}" ;;
     esac
   done <<< "$parsed_output"
@@ -452,6 +491,7 @@ Arguments:
 
 Options:
   -q, --quick               skip updating existing repositories
+  -r, --rebase              rebase diverged repositories onto remote
   -n, --dry-run             show actions without executing
   -p, --protocol PROTOCOL   git protocol (default: git, options: git, https)
   -v, --verbose             detailed output
@@ -462,6 +502,7 @@ Examples:
   mt git pull ~/projects/            # find repos file in directory
   mt git pull ~/projects/.repos.txt  # use specific manifest file
   mt git pull --quick                # only clone missing, skip updates
+  mt git pull --rebase               # rebase any diverged repos
   mt git pull --dry-run              # preview changes
 
 Environment Variables:
@@ -520,7 +561,7 @@ EOF
   fi
 
   local result=0
-  if ! _mt_git_pull_process_repos "$repos_file" "$work_dir" "$quick"; then
+  if ! _mt_git_pull_process_repos "$repos_file" "$work_dir" "$quick" "$rebase"; then
     result=1
   fi
 

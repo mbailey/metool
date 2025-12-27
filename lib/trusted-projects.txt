@@ -12,11 +12,8 @@ https://github.com/ai-cora/*
 # Mike Bailey's repositories (all SSH key variants)
 git@github.com:mbailey/*
 git@github.com_mbailey:mbailey/*
-git@github.com_mbailey-versent:mbailey/*
 https://github.com/mbailey/*
 
 # Specific trusted organizations
 git@github.com:anthropics/*
 https://github.com/anthropics/*
-git@github.com:microsoft/playwright*
-https://github.com/microsoft/playwright*

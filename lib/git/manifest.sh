@@ -201,6 +201,7 @@ _mt_git_manifest_parse_args() {
   local work_dir=""
   local dry_run=false
   local quick=false
+  local rebase=false
   local show_help=false
 
   # Check for help first, before any file discovery
@@ -217,6 +218,7 @@ _mt_git_manifest_parse_args() {
     echo "WORK_DIR="
     echo "DRY_RUN=$dry_run"
     echo "QUICK=$quick"
+    echo "REBASE=$rebase"
     echo "SHOW_HELP=$show_help"
     return 0
   fi
@@ -238,6 +240,10 @@ _mt_git_manifest_parse_args() {
         ;;
       -q|--quick)
         quick=true
+        shift
+        ;;
+      -r|--rebase)
+        rebase=true
         shift
         ;;
       -p|--protocol)
@@ -322,6 +328,7 @@ _mt_git_manifest_parse_args() {
   echo "WORK_DIR=$work_dir"
   echo "DRY_RUN=$dry_run"
   echo "QUICK=$quick"
+  echo "REBASE=$rebase"
   echo "SHOW_HELP=$show_help"
 
   return 0
