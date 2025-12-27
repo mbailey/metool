@@ -2,15 +2,15 @@
 alias: metool
 ---
 
-# MeTool (mt) – A Propagation tray for Ideas
+# MeTool (mt) – Modular Code Organization
 
 ![A place for my code](docs/images/20250721011600.png)
 
-MeTool (`mt`) is a lightweight, modular system designed to capture, organize,
-and evolve my shell environment. Like a gardener's propagation tray for
-seedlings, it provides the perfect environment where scripts, functions, and
-tools can take root and grow before being transplanted into standalone
-projects.
+MeTool (`mt`) is a modular system for organizing all your code, scripts, and configuration. Each piece of functionality lives in its own package with a clear structure, making it easy to find, edit, share, and evolve your tools over time.
+
+Whether you're capturing a quick shell hack, building a complete application, or managing system services, metool keeps everything organized and accessible—for both humans and AI assistants.
+
+Packages can include a `SKILL.md` file that gives AI assistants like Claude Code the knowledge to help you work with that package's tools and workflows.
 
 ## Key Features
 
@@ -21,34 +21,46 @@ projects.
 
 ## Core Commands
 
-- `cd` - Change to mt root or specified target
-- `components` - List all package components (bin, shell, config, etc.)
+- `cd` - Change to MT_ROOT, module, package, or executable
 - `deps` - Check metool dependencies (--install to auto-install on macOS)
-- `disable` - Disable systemd service(s) while preserving service files
+- `doctor` - Run system health diagnostics
 - `edit` - Edit function, executable or file
-- `enable` - Enable systemd service(s) from a package
 - `git` - Git repository management commands:
-  - `clone` - Clone a git repository to a canonical location (or show status if already cloned)
+  - `add` - Add repository to .repos.txt manifest
+  - `clone` - Clone a git repository to a canonical location
+  - `pull` - Pull repositories from repos.txt manifest file
+  - `push` - Push local commits for repositories in manifest
   - `repos` - List git repositories
-  - `sync` - Sync repositories from repos.txt manifest file
-  - `trusted` - Check if repository is trusted or list patterns
-- `install` - Symlink package directories: bin, config, shell
-- `modules` - List all metool modules (collections of packages)
-- `packages` - List all metool packages with their parent modules
+  - `trusted` - Check if repository is trusted
+- `module` - Module management commands:
+  - `list` - List modules in working set
+  - `add` - Add module to working set
+  - `remove` - Remove module from working set
+  - `edit` - Edit module
+  - `update` - Update module(s) from git remote
+- `package` - Package management commands:
+  - `list` - List packages in working set
+  - `add` - Add package to working set
+  - `remove` - Remove package from working set
+  - `edit` - Edit package
+  - `install` - Install package components
+  - `uninstall` - Uninstall package (remove symlinks)
+  - `new` - Create new package from template
+  - `service` - Manage package services
 - `reload` - Reload metool
 - `update` - Update metool from git
 
 Use `-h` or `--help` for command usage.
 
+
 ## Real-World Value
 
-- **Capture Ideas Fast**: Turn quick shell hacks into organized, reusable tools
-- **Share Selectively**: Keep private scripts private, share what's useful
-- **Evolve Naturally**: Start simple, refactor safely, extract when ready
-- **Stay Organized**: Never lose track of where that useful function lives
+- **Capture Ideas Fast**: Turn quick hacks into organized, reusable packages
+- **Share Selectively**: Keep private packages private, share what's useful
+- **Stay Organized**: Never lose track of where useful code lives
+- **Works at Any Scale**: From shell functions to complete applications with systemd/launchd services
 
-MeTool brings structure to shell creativity while keeping everything accessible
-and hackable.
+MeTool brings structure to code while keeping everything accessible and hackable.
 
 ## Prerequisites
 
