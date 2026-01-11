@@ -51,7 +51,7 @@ _mt_completions() {
   local prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   # Get all mt commands from libexec
-  local mt_commands="cd deps doctor edit git module package reload update"
+  local mt_commands="cd deps doctor edit git module package reload update which"
   if [[ -d "${MT_ROOT}/libexec" ]]; then
     local libexec_cmds=$(find "${MT_ROOT}/libexec" -type f -name "mt-*" -exec basename {} \; | sed 's/^mt-//')
     mt_commands+=" ${libexec_cmds}"
@@ -67,6 +67,8 @@ _mt_completions() {
   elif [[ ${prev} == "cd" ]]; then
     _mt_complete_modules_and_packages
   elif [[ ${prev} == "edit" ]]; then
+    _mt_complete_functions_and_executables
+  elif [[ ${prev} == "which" ]]; then
     _mt_complete_functions_and_executables
   elif [[ ${prev} == "module" ]]; then
     # Complete with module subcommands

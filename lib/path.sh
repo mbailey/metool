@@ -213,3 +213,57 @@ _mt_path_rm() {
   export PATH="$new_path"
 }
 alias mt_path_rm=_mt_path_rm
+
+_mt_which() {
+  if (($# != 1)); then
+    echo "Usage: mt which <module|package|function|executable>" >&2
+    return 1
+  fi
+
+  # Check if realpath is available
+  if ! command -v realpath &>/dev/null; then
+    echo "Error: 'realpath' is required for mt which. Please install 'coreutils'." >&2
+    return 1
+  fi
+
+  local target="$1"
+
+  # Try module first (check ~/.metool/modules/)
+  if [[ -d "${MT_MODULES_DIR:-$HOME/.metool/modules}/${target}" ]]; then
+    realpath "${MT_MODULES_DIR:-$HOME/.metool/modules}/${target}"
+    return 0
+  fi
+
+  # Try package (check ~/.metool/packages/)
+  if [[ -d "${MT_PACKAGES_DIR:-$HOME/.metool/packages}/${target}" ]]; then
+    realpath "${MT_PACKAGES_DIR:-$HOME/.metool/packages}/${target}"
+    return 0
+  fi
+
+  # Enable extdebug to get function source info
+  shopt -s extdebug
+
+  # Try function - use read to handle spaces in paths
+  local func_output source_file
+  func_output=$(declare -F "${target}" 2>/dev/null || true)
+  if [[ -n "$func_output" ]]; then
+    # Read the three fields: function_name line_number source_file
+    read -r _ _ source_file <<< "$func_output"
+    if [[ -n "$source_file" ]] && [[ -f "$source_file" ]]; then
+      # Resolve symlinks for the source file
+      realpath "$source_file"
+      return 0
+    fi
+  fi
+
+  # Try executable
+  exec_path=$(which "${target}" 2>/dev/null)
+  if [[ -n $exec_path ]]; then
+    # Resolve symlinks for the executable
+    realpath "$exec_path"
+    return 0
+  fi
+
+  echo "Error: '${target}' not found" >&2
+  return 1
+}
