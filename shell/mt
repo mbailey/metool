@@ -184,6 +184,7 @@ mt() {
       echo "    service CMD PKG      Manage package services"
       echo "  reload                 Reload metool"
       echo "  update                 Update metool from git"
+      echo "  which TARGET           Show real path to module, package, function, or executable"
       echo "  -h, --help             Show this help message and exit"
       echo
       ;;
@@ -233,6 +234,10 @@ mt() {
     doctor)
       shift
       _mt_doctor "$@"
+      ;;
+    which)
+      shift
+      _mt_which "$@"
       ;;
     help)
       # Redirect help to -h/--help handler
