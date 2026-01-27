@@ -1,6 +1,16 @@
 # Set default log level if not specified
 : "${MT_LOG_LEVEL:=INFO}"
 
+# Bash 3.2 compatible case conversion helpers
+# These replace ${var^^} and ${var,,} which require bash 4+
+_mt_uppercase() {
+  echo "$1" | tr '[:lower:]' '[:upper:]'
+}
+
+_mt_lowercase() {
+  echo "$1" | tr '[:upper:]' '[:lower:]'
+}
+
 # Columnise - format tab-separated output into aligned columns
 # Usage: command | columnise [--force]
 # Options:
@@ -56,7 +66,9 @@ _mt_log() {
   local message="$*"
 
   # Convert level to number for comparison
-  case "${level^^}" in
+  local level_upper
+  level_upper=$(_mt_uppercase "$level")
+  case "$level_upper" in
   ERROR) level_num=0 ;;
   WARNING) level_num=1 ;;
   INFO) level_num=2 ;;
@@ -65,7 +77,9 @@ _mt_log() {
   esac
 
   # Convert MT_LOG_LEVEL to number
-  case "${MT_LOG_LEVEL^^}" in
+  local log_level_upper
+  log_level_upper=$(_mt_uppercase "$MT_LOG_LEVEL")
+  case "$log_level_upper" in
   ERROR) log_level_num=0 ;;
   WARNING) log_level_num=1 ;;
   INFO) log_level_num=2 ;;
@@ -78,7 +92,7 @@ _mt_log() {
     local color prefix
 
     # Set color and prefix based on level
-    case "${level^^}" in
+    case "$level_upper" in
     ERROR)
       color=$MT_COLOR_ERROR
       prefix="🚫"
@@ -109,7 +123,7 @@ _mt_log() {
     fi
 
     # Output to appropriate stream
-    if [[ "${level^^}" == "ERROR" || "${level^^}" == "WARNING" ]]; then
+    if [[ "$level_upper" == "ERROR" || "$level_upper" == "WARNING" ]]; then
       printf "%b\n" "$formatted_msg" >&2
     else
       printf "%b\n" "$formatted_msg"
@@ -551,7 +565,9 @@ _mt_init_ln_command() {
   echo -n "Would you like to install it now? (Y)es/(N)o [N]: "
   read -r response
   
-  if [[ "${response,,}" == "y" || "${response,,}" == "yes" ]]; then
+  local response_lower
+  response_lower=$(_mt_lowercase "$response")
+  if [[ "$response_lower" == "y" || "$response_lower" == "yes" ]]; then
     _mt_info "Running: brew install coreutils"
     if brew install coreutils; then
       # Check again after installation

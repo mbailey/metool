@@ -24,8 +24,8 @@ _mt_confirm() {
     fi
     
     # Make the default option uppercase
-    default_upper="${default^^}"
-    
+    default_upper=$(_mt_uppercase "$default")
+
     # Prepare prompt options (no colors)
     local prompt_options="(Y)eah/(N)ah/(A)bort/(D)on't ask again [${default_upper}]:"
     
@@ -37,7 +37,9 @@ _mt_confirm() {
     response="${response:-$default}"
     
     # Process response
-    case "${response,,}" in
+    local response_lower
+    response_lower=$(_mt_lowercase "$response")
+    case "$response_lower" in
         y|yeah)
             return 0
             ;;
@@ -51,7 +53,9 @@ _mt_confirm() {
             # Prompt for which value to remember
             echo "Remember which response?"
             read -p "(Y)eah/(N)ah/(C)ancel: " remember
-            case "${remember,,}" in
+            local remember_lower
+            remember_lower=$(_mt_lowercase "$remember")
+            case "$remember_lower" in
                 y|yeah)
                     export $don_t_ask_var="yeah"
                     _mt_info "Will automatically choose 'Yeah' for future prompts in this session"
@@ -72,7 +76,9 @@ _mt_confirm() {
             ;;
         *)
             # For any other response, use the default
-            if [[ "${default,,}" == "yeah" ]]; then
+            local default_lower
+            default_lower=$(_mt_lowercase "$default")
+            if [[ "$default_lower" == "yeah" ]]; then
                 return 0
             else
                 return 1
@@ -105,8 +111,8 @@ _mt_confirm_multiple() {
     fi
     
     # Make the default option uppercase
-    default_upper="${default^^}"
-    
+    default_upper=$(_mt_uppercase "$default")
+
     # Prepare prompt options (no colors)
     local prompt_options="(Y)eah/(N)ah/(A)ll/(Q)uit/(D)on't ask again [${default_upper}]:"
     
@@ -120,7 +126,9 @@ _mt_confirm_multiple() {
     response="${response:-$default}"
     
     # Process response
-    case "${response,,}" in
+    local response_lower
+    response_lower=$(_mt_lowercase "$response")
+    case "$response_lower" in
         y|yeah)
             return 0
             ;;
@@ -139,7 +147,9 @@ _mt_confirm_multiple() {
             echo -n "(Y)eah/(N)ah/(A)ll/(C)ancel: "
             read -n1 -s remember
             echo  # Add newline after character input
-            case "${remember,,}" in
+            local remember_lower
+            remember_lower=$(_mt_lowercase "$remember")
+            case "$remember_lower" in
                 y|yeah)
                     export $don_t_ask_var="yeah"
                     _mt_info "Will automatically choose 'Yeah' for future prompts in this session"
@@ -165,9 +175,11 @@ _mt_confirm_multiple() {
             ;;
         *)
             # For any other response, use the default
-            if [[ "${default,,}" == "yeah" ]]; then
+            local default_lower
+            default_lower=$(_mt_lowercase "$default")
+            if [[ "$default_lower" == "yeah" ]]; then
                 return 0
-            elif [[ "${default,,}" == "all" ]]; then
+            elif [[ "$default_lower" == "all" ]]; then
                 return 2
             else
                 return 1
