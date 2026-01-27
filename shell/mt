@@ -38,7 +38,10 @@ mt() {
   source "${MT_ROOT}/lib/working-set.sh" # MT-11 working set helpers
   source "${MT_ROOT}/lib/module.sh" # MT-11 module commands
   source "${MT_ROOT}/lib/service.sh" # MT-11 service commands
-  source "${MT_ROOT}/lib/doctor.sh" # MT-12 system health diagnostics
+  # MT-12 system health diagnostics (requires bash 4+ for declare -g)
+  if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
+    source "${MT_ROOT}/lib/doctor.sh"
+  fi
 
   # Initialise globals
   : ${XDG_LOCAL_BIN:="${HOME}/.local/bin"}
