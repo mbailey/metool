@@ -100,7 +100,7 @@ _mt_completions() {
   elif [[ ${COMP_WORDS[1]} == "package" && ${prev} == "install" ]]; then
     # Complete with package names for installation or flags
     if [[ "${cur}" == -* ]]; then
-      COMPREPLY=($(compgen -W "--no-bin --no-config --no-shell --help" -- "${cur}"))
+      COMPREPLY=($(compgen -W "--no-bin --no-config --no-shell --no-skill --adopt --force -h --help" -- "${cur}"))
     else
       _mt_complete_packages
     fi
