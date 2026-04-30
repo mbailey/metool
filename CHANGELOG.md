@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `mt package install` now supports `-h`/`--help`, `--adopt` (pull user-side `config/` drift back into the package source then symlink), and `--force` (bypass the adopt uncommitted-changes safety guard) (MT-58)
 - `mt git add` command for incremental repository management
   - Add repositories to nearest .repos.txt file
   - Interactive creation of .repos.txt if not found

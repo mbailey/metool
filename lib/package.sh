@@ -259,6 +259,8 @@ _mt_package_install_single() {
   local skip_config="$3"
   local skip_shell="$4"
   local skip_skill="$5"
+  local adopt="${6:-false}"
+  local force="${7:-false}"
 
   # Check if package is in working set
   if ! _mt_package_in_working_set "$package_name"; then
@@ -372,6 +374,27 @@ _mt_package_install_single() {
   return 0
 }
 
+# Print usage information for `mt package install`
+_mt_package_install_usage() {
+  _mt_info "Usage: mt package install <package> [<package>...] [options]"
+  _mt_info ""
+  _mt_info "Options:"
+  _mt_info "  --no-bin      Skip installing bin/ directory"
+  _mt_info "  --no-config   Skip installing config/ directory"
+  _mt_info "  --no-shell    Skip installing shell/ directory"
+  _mt_info "  --no-skill    Skip installing SKILL.md"
+  _mt_info "  --adopt       Adopt regular files at destinations into the package source,"
+  _mt_info "                then replace them with stow symlinks (config/ only)"
+  _mt_info "  --force       Bypass the uncommitted-changes safety guard for --adopt"
+  _mt_info "  -h, --help    Show this help and exit"
+  _mt_info ""
+  _mt_info "Examples:"
+  _mt_info "  mt package install git-tools"
+  _mt_info "  mt package install agents tmux vim-config"
+  _mt_info "  mt package install --no-config tool1 tool2"
+  _mt_info "  mt package install git --adopt"
+}
+
 # Install package(s) from working set (supports multiple packages)
 _mt_package_install() {
   # Parse options and package names
@@ -379,10 +402,16 @@ _mt_package_install() {
   local skip_config=false
   local skip_shell=false
   local skip_skill=false
+  local adopt=false
+  local force=false
   local -a package_names=()
 
   while [[ $# -gt 0 ]]; do
     case $1 in
+      -h|--help)
+        _mt_package_install_usage
+        return 0
+        ;;
       --no-bin)
         skip_bin=true
         shift
@@ -399,6 +428,14 @@ _mt_package_install() {
         skip_skill=true
         shift
         ;;
+      --adopt)
+        adopt=true
+        shift
+        ;;
+      --force)
+        force=true
+        shift
+        ;;
       -*)
         _mt_error "Unknown option: $1"
         return 1
@@ -412,17 +449,7 @@ _mt_package_install() {
 
   # Validate input
   if [[ ${#package_names[@]} -eq 0 ]]; then
-    _mt_error "Usage: mt package install <package> [<package>...] [options]"
-    _mt_info "Options:"
-    _mt_info "  --no-bin      Skip installing bin/ directory"
-    _mt_info "  --no-config   Skip installing config/ directory"
-    _mt_info "  --no-shell    Skip installing shell/ directory"
-    _mt_info "  --no-skill    Skip installing SKILL.md"
-    _mt_info ""
-    _mt_info "Examples:"
-    _mt_info "  mt package install git-tools"
-    _mt_info "  mt package install agents tmux vim-config"
-    _mt_info "  mt package install --no-config tool1 tool2"
+    _mt_package_install_usage
     return 1
   fi
 
@@ -432,7 +459,45 @@ _mt_package_install() {
 
   # Install each package
   for package_name in "${package_names[@]}"; do
-    if _mt_package_install_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell" "$skip_skill"; then
+    if [[ "$adopt" == "true" ]]; then
+      local pkg_path
+      if ! pkg_path=$(_mt_package_path "$package_name") || [[ -z "$pkg_path" ]] || [[ ! -d "$pkg_path" ]]; then
+        _mt_error "Package not found in working set: $package_name"
+        ((fail_count++))
+        failed_packages+=("$package_name")
+        continue
+      fi
+
+      local plan
+      if ! plan=$(_mt_adopt_plan "$pkg_path" "$package_name"); then
+        ((fail_count++))
+        failed_packages+=("$package_name")
+        continue
+      fi
+
+      local -a dirty_relpaths=()
+      local plan_status plan_source plan_dest
+      while IFS=$'\t' read -r plan_status plan_source plan_dest; do
+        [[ "$plan_status" == "regular_file" ]] || continue
+        dirty_relpaths+=("${plan_source#${pkg_path}/}")
+      done <<< "$plan"
+
+      if [[ ${#dirty_relpaths[@]} -gt 0 ]]; then
+        if ! _mt_adopt_check_clean "$pkg_path" "$force" "${dirty_relpaths[@]}"; then
+          ((fail_count++))
+          failed_packages+=("$package_name")
+          continue
+        fi
+      fi
+
+      if ! _mt_adopt_apply "$pkg_path" "$plan" "$force"; then
+        ((fail_count++))
+        failed_packages+=("$package_name")
+        continue
+      fi
+    fi
+
+    if _mt_package_install_single "$package_name" "$skip_bin" "$skip_config" "$skip_shell" "$skip_skill" "$adopt" "$force"; then
       ((success_count++))
     else
       ((fail_count++))
