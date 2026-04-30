@@ -126,9 +126,15 @@ mt() {
               should_source=false
             fi
             ;;
-          sh|"")
-            # .sh files and files with no extension work in all shells
+          sh)
+            # .sh files work in all shells
             should_source=true
+            ;;
+          "")
+            # Files with no extension: _prefix is zsh completion convention (skip in bash)
+            if [[ "$current_shell" == "bash" && "$filename" == _* ]]; then
+              should_source=false
+            fi
             ;;
           *)
             # Other extensions (e.g., .py, .md) - source in all shells
