@@ -35,6 +35,7 @@ mt() {
   source "${MT_ROOT}/lib/systemd.sh"
   source "${MT_ROOT}/lib/repos.sh"
   source "${MT_ROOT}/lib/package.sh"
+  source "${MT_ROOT}/lib/adopt.sh" # MT-58 --adopt flag helpers
   source "${MT_ROOT}/lib/working-set.sh" # MT-11 working set helpers
   source "${MT_ROOT}/lib/module.sh" # MT-11 module commands
   source "${MT_ROOT}/lib/service.sh" # MT-11 service commands
