@@ -174,8 +174,19 @@ _mt_parse_git_url() {
   elif [[ "$url" =~ ^https?://[^/]+/(.+)$ ]]; then
     # HTTPS format without .git: https://github.com/owner/repo
     owner_repo="${BASH_REMATCH[1]}"
+  elif [[ "$url" =~ ^([^:/@]+):(.+)$ ]]; then
+    # ssh_config Host alias form: host:path or host:path.git
+    # e.g. failmode:mbailey/skillify, ms2:git/repos/foo.git, ms2:~/git/repos/mfp.git
+    # MUST stay last -- [^:/@]+ would shadow `https` if placed before the
+    # https?:// patterns. The git@ patterns are safe (literal `@` blocks the
+    # alternative class), but order-by-defence is cheaper than order-by-proof.
+    # Alias prefix is preserved verbatim so the output round-trips through
+    # mt sync / mt clone, which already understand host_identity:user/repo.
+    local _alias_host="${BASH_REMATCH[1]}"
+    local _alias_path="${BASH_REMATCH[2]%.git}"
+    owner_repo="${_alias_host}:${_alias_path}"
   fi
-  
+
   echo "$owner_repo"
 }
 
