@@ -93,8 +93,10 @@ EOF
       local owner_repo
       owner_repo=$(_mt_parse_git_url "$remote_url")
       
-      # Skip if we couldn't parse
+      # Skip if we couldn't parse -- warn so the user knows we saw the repo
+      # but couldn't represent it in .repos.txt shape (see MT-66).
       if [[ -z "$owner_repo" ]]; then
+        _mt_warning "Cannot parse remote URL \"$remote_url\" at $path"
         continue
       fi
       
