@@ -1,6 +1,7 @@
 # Functions for git operations
 
 # Source git submodules
+source "${MT_ROOT}/lib/git/url.sh"
 source "${MT_ROOT}/lib/git/manifest.sh"
 source "${MT_ROOT}/lib/git/common.sh"
 source "${MT_ROOT}/lib/git/pull.sh"
