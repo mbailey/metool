@@ -74,9 +74,9 @@ _mt_module_add() {
     return 1
   fi
 
-  # Resolve to full git URL using existing function
+  # Resolve to full git URL (MT-72: _mt_url_to_fetch).
   local git_url
-  git_url=$(_mt_repo_url "$module_spec") || {
+  git_url=$(_mt_url_to_fetch "$module_spec") || {
     _mt_error "Invalid module specification: $module_spec"
     return 1
   }

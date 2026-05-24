@@ -101,10 +101,10 @@ EOF
         continue
       fi
       
-      # Parse owner/repo from the URL
+      # Parse owner/repo from the URL via the canonical parser (MT-72).
       local owner_repo
-      owner_repo=$(_mt_parse_git_url "$remote_url")
-      
+      owner_repo=$(_mt_url_canonicalise "$remote_url" 2>/dev/null) || owner_repo=""
+
       # Skip if we couldn't parse -- warn so the user knows we saw the repo
       # but couldn't represent it in .repos.txt shape (see MT-66).
       if [[ -z "$owner_repo" ]]; then
@@ -165,41 +165,6 @@ EOF
       echo "$output"
     fi
   fi
-}
-
-# Parse git URL to extract owner/repo
-_mt_parse_git_url() {
-  local url="$1"
-  local owner_repo=""
-  
-  # Handle different git URL formats
-  if [[ "$url" =~ ^git@([^:]+):(.+)\.git$ ]]; then
-    # SSH format: git@github.com:owner/repo.git
-    # or keycutter: git@github.com_alias:owner/repo.git
-    owner_repo="${BASH_REMATCH[2]}"
-  elif [[ "$url" =~ ^git@([^:]+):(.+)$ ]]; then
-    # SSH format without .git: git@github.com:owner/repo
-    owner_repo="${BASH_REMATCH[2]}"
-  elif [[ "$url" =~ ^https?://[^/]+/(.+)\.git$ ]]; then
-    # HTTPS format: https://github.com/owner/repo.git
-    owner_repo="${BASH_REMATCH[1]}"
-  elif [[ "$url" =~ ^https?://[^/]+/(.+)$ ]]; then
-    # HTTPS format without .git: https://github.com/owner/repo
-    owner_repo="${BASH_REMATCH[1]}"
-  elif [[ "$url" =~ ^([^:/@]+):(.+)$ ]]; then
-    # ssh_config Host alias form: host:path or host:path.git
-    # e.g. failmode:mbailey/skillify, ms2:git/repos/foo.git, ms2:~/git/repos/mfp.git
-    # MUST stay last -- [^:/@]+ would shadow `https` if placed before the
-    # https?:// patterns. The git@ patterns are safe (literal `@` blocks the
-    # alternative class), but order-by-defence is cheaper than order-by-proof.
-    # Alias prefix is preserved verbatim so the output round-trips through
-    # mt sync / mt clone, which already understand host_identity:user/repo.
-    local _alias_host="${BASH_REMATCH[1]}"
-    local _alias_path="${BASH_REMATCH[2]%.git}"
-    owner_repo="${_alias_host}:${_alias_path}"
-  fi
-
-  echo "$owner_repo"
 }
 
 # Main repos command dispatcher

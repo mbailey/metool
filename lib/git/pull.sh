@@ -23,9 +23,9 @@ _mt_git_pull_repo() {
     repo_url="$repo_spec"
   fi
 
-  # Get the canonical repository path using existing functions
+  # Get the canonical repository path (MT-72: _mt_url_to_fetch).
   local git_repo_url git_repo_path
-  git_repo_url="$(_mt_repo_url "$repo_url")"
+  git_repo_url="$(_mt_url_to_fetch "$repo_url")"
   _mt_debug "Resolved URL: $git_repo_url" >&2
   git_repo_path="$(_mt_repo_dir "$git_repo_url")"
   _mt_debug "Resolved path: $git_repo_path" >&2
@@ -266,9 +266,9 @@ _mt_git_pull_process_repos() {
       repo_url="$repo"
     fi
 
-    # Get the canonical repository path
+    # Get the canonical repository path (MT-72)
     local git_repo_url git_repo_path
-    git_repo_url="$(_mt_repo_url "$repo_url")"
+    git_repo_url="$(_mt_url_to_fetch "$repo_url")"
     git_repo_path="$(_mt_repo_dir "$git_repo_url")"
 
     # Check if repository exists
@@ -390,9 +390,9 @@ _mt_git_pull_process_repos() {
         repo_url="$repo"
       fi
 
-      # Get the canonical repository path
+      # Get the canonical repository path (MT-72)
       local git_repo_url git_repo_path
-      git_repo_url="$(_mt_repo_url "$repo_url")"
+      git_repo_url="$(_mt_url_to_fetch "$repo_url")"
       git_repo_path="$(_mt_repo_dir "$git_repo_url")"
 
       local status="linked"

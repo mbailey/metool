@@ -131,16 +131,18 @@ teardown() {
   # Create a test git repo
   git init
   git remote add origin git@github.com_work:company/project.git
-  
+
   # Create .repos.txt
   touch .repos.txt
-  
+
   # Add repository
   MT_GIT_AUTO_ADD=true run _mt_git_add
   [ "$status" -eq 0 ]
-  
-  # Should store in special format
-  grep -q "github.com_work:company/project" .repos.txt
+
+  # MT-72: _mt_url_canonicalise emits the canonical underscore-identity form
+  # (was github.com_work:company/project before consolidation). Both forms
+  # round-trip to the same fetch URL via _mt_url_to_fetch.
+  grep -q "^_work:company/project$" .repos.txt
 }
 
 @test "mt git add searches up directory tree within git repo" {
