@@ -4,6 +4,7 @@
 #
 # MT-66: warn on unparseable remote URL instead of silent skip.
 # MT-68: accept ssh_config Host alias URL form (e.g. failmode:owner/repo).
+# MT-70: --raw flag emits unrewritten URLs from .git/config.
 
 bats_require_minimum_version 1.5.0
 
@@ -144,4 +145,78 @@ _make_repo() {
   # column-2 alias is appended.
   [ "$output" = 'failmode:mbailey/skillify' ]
   [ -z "$stderr" ]
+}
+
+# ----------------------------------------------------------------------------
+# MT-70: read raw .git/config URLs, ignore url.<base>.insteadOf rewrites
+# ----------------------------------------------------------------------------
+
+# Helper: install an insteadOf rule in a per-test gitconfig. We set
+# GIT_CONFIG_GLOBAL=/dev/null in setup() for hygiene, so to test rewrite
+# behaviour we have to point GIT_CONFIG_GLOBAL at a file we control rather
+# than touching the host's real ~/.gitconfig.
+_with_insteadof_rule() {
+  local rule_file="${TMPDIR}/test.gitconfig"
+  cat > "$rule_file" <<'EOF'
+[url "ms2:git/repos/"]
+  insteadOf = failmode:mbailey/
+EOF
+  export GIT_CONFIG_GLOBAL="$rule_file"
+}
+
+@test "mt git repos: emits raw .git/config URL, NOT the insteadOf rewrite" {
+  # Core MT-70 behaviour: the URL git would actually FETCH from is the
+  # rewritten one (ms2:git/repos/skillify), but mt git repos' job is to
+  # produce a .repos.txt that reflects what the user *wrote* -- so it must
+  # emit the alias form (failmode:mbailey/skillify) from .git/config.
+  _with_insteadof_rule
+  _make_repo skillify 'failmode:mbailey/skillify'
+
+  # Sanity: confirm the rewrite IS in effect for this repo.
+  run -0 git -C "${TMPDIR}/skillify" remote get-url origin
+  [ "$output" = 'ms2:git/repos/skillify' ]
+
+  # mt git repos must bypass the rewrite and emit the raw form.
+  run --separate-stderr -0 _mt_repos_discover .
+  [ "$output" = 'failmode:mbailey/skillify' ]
+  [ -z "$stderr" ]
+}
+
+@test "mt git repos: with no insteadOf rules, behaviour matches the natural URL" {
+  # Regression guard: switching from `git remote get-url` to `git config --get`
+  # shouldn't change output when no rewrites are configured. Both should
+  # produce the same parsed entry.
+  _make_repo keycutter 'git@github.com:mbailey/keycutter.git'
+
+  run --separate-stderr -0 _mt_repos_discover .
+  [ "$output" = 'mbailey/keycutter' ]
+  [ -z "$stderr" ]
+}
+
+@test "mt git repos: handles every URL shape _mt_parse_git_url accepts" {
+  # End-to-end regression across all five URL shapes the parser supports.
+  # If anyone reorders the parser patterns or breaks one of them, this
+  # catches it via the discover path rather than only the unit tests.
+  _make_repo a 'git@github.com:owner/a.git'
+  _make_repo b 'git@github.com:owner/b'
+  _make_repo c 'https://github.com/owner/c.git'
+  _make_repo d 'https://github.com/owner/d'
+  _make_repo e 'failmode:owner/e.git'
+  _make_repo f 'failmode:owner/f'
+
+  run --separate-stderr -0 _mt_repos_discover .
+
+  [ -z "$stderr" ]
+  [[ "$output" == *"owner/a"* ]]
+  [[ "$output" == *"owner/b"* ]]
+  [[ "$output" == *"owner/c"* ]]
+  [[ "$output" == *"owner/d"* ]]
+  [[ "$output" == *"failmode:owner/e"* ]]
+  [[ "$output" == *"failmode:owner/f"* ]]
+}
+
+@test "mt git repos --help: documents the raw-config behaviour" {
+  run -0 _mt_repos_discover --help
+  [[ "$output" == *"insteadOf"* ]]
+  [[ "$output" == *".git/config"* ]]
 }

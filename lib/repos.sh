@@ -6,7 +6,7 @@ _mt_repos_discover() {
   local recursive=false
   local columnise=false
   local search_path="."
-  
+
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -22,12 +22,18 @@ _mt_repos_discover() {
         cat << EOF
 Usage: mt git repos [-r] [-c] [PATH]
 
-List git repositories and output in repos.txt format
+List git repositories and output in repos.txt format.
+
+URLs are read from .git/config verbatim -- the alias form you originally
+cloned with (e.g. failmode:mbailey/repo), not the post-insteadOf rewrite
+(e.g. ms2:git/repos/repo). The reasoning: this output is for your
+.repos.txt, which should reflect what you wrote. If you want git's
+effective fetch URL, use 'git remote get-url' directly.
 
 Options:
   -r, --recursive    Recursively scan subdirectories
   -c, --columnise    Force column formatting even when piping to file
-  PATH              Directory to scan (default: current directory)
+  PATH               Directory to scan (default: current directory)
 
 Output format:
   owner/repo [alias]
@@ -80,9 +86,15 @@ EOF
         continue
       fi
       
-      # Get the remote origin URL
+      # Read the remote URL verbatim from .git/config -- the value the user
+      # actually wrote, with no url.<base>.insteadOf rewrites applied. This
+      # output is destined for a .repos.txt the user maintains, so it should
+      # reflect what they typed (alias form, etc.) rather than git's
+      # effective fetch URL. Using `git remote get-url` here would silently
+      # rewrite e.g. `failmode:mbailey/repo` to `ms2:git/repos/repo` -- not
+      # what we want.
       local remote_url
-      remote_url=$(cd "$target" && git remote get-url origin 2>/dev/null)
+      remote_url=$(cd "$target" && git config --get remote.origin.url 2>/dev/null)
       
       # Skip if no remote
       if [[ -z "$remote_url" ]]; then
