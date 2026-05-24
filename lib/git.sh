@@ -338,146 +338,6 @@ _mt_prompt_create_repos_file() {
   esac
 }
 
-_mt_repo_url() {
-    local repo="${1:-.}"
-
-    # Return the remote origin URL of a git repository if it's a local directory.
-    if [[ -d "$repo" ]]; then
-        git -C "$repo" config --get remote.origin.url && return
-    fi
-
-    # Extract the optional protocol, host, and user/org from the input if provided
-    local git_base_dir="${MT_GIT_BASE_DIR}"
-    local protocol="${MT_GIT_PROTOCOL_DEFAULT:-git}"
-    local host="${MT_GIT_HOST_DEFAULT:-github.com}"
-    local github_user="${MT_GIT_USER_DEFAULT}"
-    
-    # Handle full URLs first (they take precedence over shorthand)
-    
-    # Handle git@host:user/repo format (full SSH URL)
-    if [[ "$repo" =~ ^git@([^:]+):([^/]+)/([^/:@]+)$ ]]; then
-        local ssh_host="${BASH_REMATCH[1]}"
-        local user="${BASH_REMATCH[2]}"
-        local repo_name="${BASH_REMATCH[3]}"
-        
-        # Add .git only if not already present
-        if [[ "$repo_name" == *.git ]]; then
-            echo "git@${ssh_host}:${user}/${repo_name}"
-        else
-            echo "git@${ssh_host}:${user}/${repo_name}.git"
-        fi
-        return
-    fi
-    
-    # Handle https://host/user/repo format (full HTTPS URL)
-    if [[ "$repo" =~ ^https://([^/]+)/([^/]+)/([^/:@]+)$ ]]; then
-        local https_host="${BASH_REMATCH[1]}"
-        local user="${BASH_REMATCH[2]}"
-        local repo_name="${BASH_REMATCH[3]}"
-        
-        # Add .git only if not already present
-        if [[ "$repo_name" == *.git ]]; then
-            echo "https://${https_host}/${user}/${repo_name}"
-        else
-            echo "https://${https_host}/${user}/${repo_name}.git"
-        fi
-        return
-    fi
-    
-    # Expand GitHub shorthand _identity: to github.com_identity:
-    if [[ "$repo" =~ ^_([^:]*):(.+)$ ]]; then
-        local identity="${BASH_REMATCH[1]}"
-        local repo_path="${BASH_REMATCH[2]}"
-        
-        # Handle empty identity (just _:repo) - auto-match owner
-        if [[ -z "$identity" ]]; then
-            # Extract owner from repo path (owner/repo format)
-            if [[ "$repo_path" =~ ^([^/]+)/(.+)$ ]]; then
-                local owner="${BASH_REMATCH[1]}"
-                # Use owner as identity
-                repo="github.com_${owner}:${repo_path}"
-            else
-                _mt_error "Invalid repository format for auto-identity: '$repo_path'. Expected 'owner/repo' format."
-                return 1
-            fi
-        else
-            # Explicit identity provided
-            repo="github.com_${identity}:${repo_path}"
-        fi
-    fi
-    
-    # Handle host_identity:user/repo format (e.g., github.com_mbailey:mbailey/keycutter)
-    if [[ "$repo" =~ ^([^:]+):([^/]+)/([^/:@]+)$ ]]; then
-        local host_identity="${BASH_REMATCH[1]}"
-        local user="${BASH_REMATCH[2]}"
-        local repo_name="${BASH_REMATCH[3]}"
-        
-        # Host identity format ALWAYS uses SSH (it's for SSH key management)
-        # The whole point of host_identity is to specify which SSH key to use
-        # Add .git only if not already present
-        if [[ "$repo_name" == *.git ]]; then
-            echo "git@${host_identity}:${user}/${repo_name}"
-        else
-            echo "git@${host_identity}:${user}/${repo_name}.git"
-        fi
-        return
-    fi
-
-    # if input is foo/bar, generate appropriate URL based on protocol
-    if [[ "$repo" =~ ^([^/:@]+)/([^/:@]+)$ ]]; then
-        user="${BASH_REMATCH[1]}"
-        repo_name="${BASH_REMATCH[2]}"
-        
-        if [[ "$protocol" == "ssh" ]] || [[ "$protocol" == "git" ]]; then
-            # Add .git only if not already present
-            if [[ "$repo_name" == *.git ]]; then
-                echo "git@${host}:${user}/${repo_name}"
-            else
-                echo "git@${host}:${user}/${repo_name}.git"
-            fi
-        else
-            # Add .git only if not already present
-            if [[ "$repo_name" == *.git ]]; then
-                echo "${protocol}://${host}/${user}/${repo_name}"
-            else
-                echo "${protocol}://${host}/${user}/${repo_name}.git"
-            fi
-        fi
-        return
-    fi 
-    
-    # Handle :user/repo format (SSH shorthand)
-    if [[ "$repo" =~ ^:([^/]+)/([^/:@]+)$ ]]; then
-        user="${BASH_REMATCH[1]}"
-        repo_name="${BASH_REMATCH[2]}"
-        
-        # Always use SSH for :user/repo format
-        if [[ "$repo_name" == *.git ]]; then
-            echo "git@${host}:${user}/${repo_name}"
-        else
-            echo "git@${host}:${user}/${repo_name}.git"
-        fi
-        return
-    fi
-    
-    # Handle host.com/user/repo format (HTTPS shorthand)
-    if [[ "$repo" =~ ^([^/:@]+\.[^/:@]+)/([^/]+)/([^/:@]+)$ ]]; then
-        local url_host="${BASH_REMATCH[1]}"
-        user="${BASH_REMATCH[2]}"
-        repo_name="${BASH_REMATCH[3]}"
-        
-        # Use HTTPS for host.com/user/repo format
-        if [[ "$repo_name" == *.git ]]; then
-            echo "https://${url_host}/${user}/${repo_name}"
-        else
-            echo "https://${url_host}/${user}/${repo_name}.git"
-        fi
-        return
-    fi
-    
-    echo "$repo"
-}
-
 _mt_repo_dir() {
     # Return desired path for a git repo (MT-72: parses via _mt_url_parse).
     local git_repo="${1}"
@@ -820,8 +680,9 @@ _mt_clone() {
         export MT_GIT_INCLUDE_IDENTITY_IN_PATH=true
     fi
 
-    # Resolve repository URL and path (MT-72: _mt_repo_origin_url preserves the
-    # local-dir-as-repo branch that _mt_repo_url used to handle).
+    # Resolve repository URL and path. _mt_repo_origin_url handles the
+    # local-dir-as-repo branch (reads `git config remote.origin.url`); pure
+    # URL-shape inputs go through _mt_url_to_fetch.
     local git_repo_url
     local git_repo_path
 

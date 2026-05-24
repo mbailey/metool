@@ -112,10 +112,10 @@ setup() {
   }
   
   # Mock repo URL and directory functions
-  _mt_repo_url() {
+  _mt_repo_origin_url() {
     echo "https://github.com/test-user/${TEST_REPO_NAME}.git"
   }
-  
+
   _mt_repo_dir() {
     echo "${MT_GIT_BASE_DIR}/github.com/test-user/${TEST_REPO_NAME}"
   }
@@ -149,7 +149,7 @@ setup() {
       return 1
     fi
     
-    local git_repo_url="$(_mt_repo_url "${git_repo}")"
+    local git_repo_url="$(_mt_repo_origin_url "${git_repo}")"
     local git_repo_path="$(_mt_repo_dir "${git_repo_url}")"
     
     # Check if destination exists and is a git repo

@@ -1,25 +1,20 @@
 # Canonical URL parser for metool.
 #
-# Replaces (via callers' migration in MT-72/migrate-001):
-#   _mt_parse_git_url         (lib/repos.sh)            URL on disk -> .repos.txt entry
-#   _mt_repo_url              (lib/git.sh, URL-build)   .repos.txt entry -> fetchable URL
-#   URL recognition inline in _mt_git_manifest_parse    (lib/git/manifest.sh)
-#
 # Design (see ../../behaviour-matrix.md and MT-72 README.md):
 #   - One parser produces structured fields via a caller-supplied associative
 #     array (nameref). Bash 4+ is already required (install.sh, lib/bash-check.sh).
-#   - String-output helpers compose on top: _mt_url_canonicalise (replaces
-#     _mt_parse_git_url) and _mt_url_to_fetch (replaces _mt_repo_url's
-#     URL-building branches; the local-dir branch is NOT this file's concern --
-#     see D7 in the matrix).
+#   - String-output helpers compose on top: _mt_url_canonicalise emits the
+#     .repos.txt entry shape; _mt_url_to_fetch emits a fetchable URL. The
+#     local-dir branch (read .git/config) lives in _mt_repo_origin_url -- the
+#     parser does not touch the filesystem (D7 in the matrix).
 #   - The @version strip uses the anchored regex `@[^/:@]+$`, NOT `%%@*`. The
 #     greedy `%%@*` is the bug class D9 documents -- it eats `git@` and yields
 #     repo_name=git for every `git@host:owner/repo` input.
 #   - Regex classification order is fixed: more-specific shapes first. The
 #     alias-form catch-all (`^([^/:@]+):(.+)$`) MUST come after the http(s)://
 #     and user@host: branches -- it would otherwise shadow them. MT-68
-#     documented this silent-shadowing bug class; the test suite (tests-001)
-#     latches a guard against it.
+#     documented this silent-shadowing bug class; tests/url.bats latches a
+#     guard against it.
 
 # _mt_url_parse <url> <out_var_name>
 #
@@ -65,7 +60,7 @@ _mt_url_parse() {
   fi
 
   # Local paths: parser does NOT touch the filesystem (D7). Caller-side helper
-  # (_mt_repo_origin_url, migrate-001) reads .git/config when needed.
+  # _mt_repo_origin_url reads .git/config when needed.
   if [[ "$url" == /* ]] || [[ "$url" == ./* ]] || [[ "$url" == ../* ]] \
      || [[ "$url" == "." ]] || [[ "$url" == ".." ]] \
      || [[ "$url" == "~" ]] || [[ "$url" == "~/"* ]]; then
@@ -218,14 +213,13 @@ _mt_url__split_path() {
 
 # _mt_url_canonicalise <url>
 #
-# Echo the .repos.txt canonical form. Replaces _mt_parse_git_url.
+# Echo the .repos.txt canonical form.
 #
 # Conventions (per behaviour matrix + D2/D5):
 #   ssh, default host, no identity  -> owner/repo  (drops host info)
 #   ssh, with identity              -> _identity:owner/repo  (round-trip form)
 #   ssh, non-default host           -> host:owner/repo
-#   https / http                    -> owner/repo  (drops host info; matches
-#                                      _mt_parse_git_url's existing behaviour)
+#   https / http                    -> owner/repo  (drops host info)
 #   alias, no identity              -> host:owner/repo  (alias preserved)
 #   alias, with identity            -> _identity:owner/repo
 #   shorthand                       -> owner/repo (already canonical)
@@ -275,13 +269,12 @@ _mt_url_canonicalise() {
 
 # _mt_url_to_fetch <url>
 #
-# Echo a fetchable URL (suitable for `git clone`). Replaces _mt_repo_url's
-# URL-building branches. The local-directory branch is OUT OF SCOPE here --
-# callers handling on-disk paths must use _mt_repo_origin_url (added in
-# migrate-001) which reads .git/config.
+# Echo a fetchable URL (suitable for `git clone`). The local-directory branch
+# is OUT OF SCOPE here -- callers handling on-disk paths must use
+# _mt_repo_origin_url, which reads .git/config.
 #
-# Unparseable input passes through unchanged, matching _mt_repo_url's
-# silent fallthrough.
+# Unparseable input passes through unchanged (silent fallthrough for callers
+# that may receive arbitrary strings).
 _mt_url_to_fetch() {
   local url="${1:?url required}"
   local -A _mt_url_f_p
@@ -332,8 +325,8 @@ _mt_url_to_fetch() {
 # Resolve a repo argument to a fetchable URL, including the disk case.
 #
 # If <repo> is an existing directory, echoes `git -C <repo> config --get
-# remote.origin.url` (D7 -- the only filesystem-touching branch the old
-# _mt_repo_url did). Otherwise delegates to _mt_url_to_fetch.
+# remote.origin.url` (D7 -- the only filesystem-touching branch). Otherwise
+# delegates to _mt_url_to_fetch.
 #
 # Use this from callers (e.g. mt clone, mt module add) that accept either a
 # local dir or a URL spec. Pure URL-shape callers should call _mt_url_to_fetch

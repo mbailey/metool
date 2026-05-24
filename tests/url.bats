@@ -454,18 +454,17 @@ setup() {
   [ "$output" = "https://github.com/mbailey/keycutter.git" ]
 }
 
-# MT-72 migrate-001 review: locks the host-shorthand fetch-URL behaviour
-# change. _mt_repo_url used to force HTTPS for `host.com/owner/repo` (the
-# old comment said "Use HTTPS for host.com/user/repo format"); the new
-# parser unifies host-shorthand with bare-shorthand under type=shorthand
-# and both apply MT_GIT_PROTOCOL_DEFAULT. See D10 in behaviour-matrix.md.
+# Host-shorthand fetch-URL: host-shorthand unifies with bare-shorthand under
+# type=shorthand and both apply MT_GIT_PROTOCOL_DEFAULT. Pre-consolidation the
+# host-shorthand branch forced HTTPS unconditionally; see D10 in
+# behaviour-matrix.md for the rationale and the env-var escape hatch.
 @test "to_fetch: host shorthand applies MT_GIT_PROTOCOL_DEFAULT (default git/ssh)" {
   run _mt_url_to_fetch "github.com/owner/repo"
   [ "$status" -eq 0 ]
   [ "$output" = "git@github.com:owner/repo.git" ]
 }
 
-@test "to_fetch: host shorthand respects MT_GIT_PROTOCOL_DEFAULT=https (matches old _mt_repo_url behaviour)" {
+@test "to_fetch: host shorthand respects MT_GIT_PROTOCOL_DEFAULT=https (escape hatch for the old always-HTTPS contract)" {
   export MT_GIT_PROTOCOL_DEFAULT="https"
   run _mt_url_to_fetch "gitlab.com/group/project"
   [ "$status" -eq 0 ]

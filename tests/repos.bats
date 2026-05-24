@@ -95,47 +95,11 @@ _make_repo() {
 }
 
 # ----------------------------------------------------------------------------
-# MT-68: _mt_parse_git_url accepts ssh_config Host alias form
+# MT-68: alias-form remote URL accepted via mt git repos discovery path
+#
+# URL-shape unit coverage lives in tests/url.bats; this section asserts the
+# discovery path emits the expected entry on stdout with no stderr noise.
 # ----------------------------------------------------------------------------
-
-@test "_mt_parse_git_url: alias form host:owner/repo -> host:owner/repo" {
-  run -0 _mt_parse_git_url 'failmode:mbailey/skillify'
-  [ "$output" = 'failmode:mbailey/skillify' ]
-}
-
-@test "_mt_parse_git_url: alias form host:owner/repo.git -> .git stripped, prefix preserved" {
-  run -0 _mt_parse_git_url 'failmode:mbailey/skillify.git'
-  [ "$output" = 'failmode:mbailey/skillify' ]
-}
-
-@test "_mt_parse_git_url: alias form with deep path host:a/b/c.git -> host:a/b/c" {
-  run -0 _mt_parse_git_url 'ms2:git/repos/foo.git'
-  [ "$output" = 'ms2:git/repos/foo' ]
-}
-
-@test "_mt_parse_git_url: alias form with tilde host:~/path/repo.git -> tilde preserved" {
-  # ms2:~/git/repos/mfp.git is a real remote in Mike's ~/Code/failmode/mbailey.
-  # The tilde must pass through verbatim -- no shell expansion, no resolution.
-  run -0 _mt_parse_git_url 'ms2:~/git/repos/mfp.git'
-  [ "$output" = 'ms2:~/git/repos/mfp' ]
-}
-
-@test "_mt_parse_git_url: existing git@ SSH pattern still parses unchanged" {
-  run -0 _mt_parse_git_url 'git@github.com:mbailey/keycutter.git'
-  [ "$output" = 'mbailey/keycutter' ]
-}
-
-@test "_mt_parse_git_url: existing HTTPS pattern still parses unchanged (alias rule does NOT shadow)" {
-  # Regression guard. The new alias-form regex `^([^:/@]+):(.+)$` would match
-  # `https://github.com/owner/repo` if placed before the HTTPS patterns
-  # ([^:/@]+ matches `https`, then `:`, then `//github.com/owner/repo`).
-  # Ordering keeps it correct; this test fails loudly if anyone reorders.
-  run -0 _mt_parse_git_url 'https://github.com/mbailey/keycutter.git'
-  [ "$output" = 'mbailey/keycutter' ]
-
-  run -0 _mt_parse_git_url 'https://github.com/mbailey/keycutter'
-  [ "$output" = 'mbailey/keycutter' ]
-}
 
 @test "mt git repos: alias-form remote produces stdout entry, empty stderr" {
   _make_repo skillify 'failmode:mbailey/skillify.git'
@@ -194,7 +158,7 @@ EOF
   [ -z "$stderr" ]
 }
 
-@test "mt git repos: handles every URL shape _mt_parse_git_url accepts" {
+@test "mt git repos: handles every URL shape the canonical parser accepts" {
   # End-to-end regression across all five URL shapes the parser supports.
   # If anyone reorders the parser patterns or breaks one of them, this
   # catches it via the discover path rather than only the unit tests.
