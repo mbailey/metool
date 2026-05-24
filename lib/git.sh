@@ -220,33 +220,13 @@ EOF
     fi
   fi
   
-  # Normalize the repository URL
-  local normalized_repo
-  if [[ "$repo" =~ ^(https://|git@) ]]; then
-    # Already a full URL
-    normalized_repo="$repo"
-  else
-    # Convert shorthand to full URL
-    normalized_repo="$(_mt_repo_url "$repo")"
-  fi
-  
-  # Convert full URL back to repos.txt format (owner/repo or special format)
+  # Convert the input to a .repos.txt-shape entry via the canonical parser
+  # (MT-72). Canonicalisation handles every URL shape the old per-case regex
+  # chain handled, including SSH-with-identity (-> _identity:owner/repo) and
+  # HTTPS (-> owner/repo).
   local repos_entry
-  if [[ "$normalized_repo" =~ git@github\.com_([^:]+):([^/]+)/([^\.]+) ]]; then
-    # Special SSH identity format
-    local identity="${BASH_REMATCH[1]}"
-    local owner="${BASH_REMATCH[2]}"
-    local repo_name="${BASH_REMATCH[3]}"
-    repos_entry="github.com_${identity}:${owner}/${repo_name}"
-  elif [[ "$normalized_repo" =~ (git@|https://)github\.com[:/]([^/]+)/([^\.]+) ]]; then
-    # Standard GitHub format - use owner/repo shorthand
-    local owner="${BASH_REMATCH[2]}"
-    local repo_name="${BASH_REMATCH[3]}"
-    repos_entry="${owner}/${repo_name}"
-  else
-    # Non-GitHub or complex format - use as-is
-    repos_entry="$repo"
-  fi
+  repos_entry="$(_mt_url_canonicalise "$repo" 2>/dev/null)" || repos_entry="$repo"
+  [[ -z "$repos_entry" ]] && repos_entry="$repo"
   
   # Find repos.txt file
   local repos_file
@@ -499,38 +479,36 @@ _mt_repo_url() {
 }
 
 _mt_repo_dir() {
-    # Return desired path for a git repo
+    # Return desired path for a git repo (MT-72: parses via _mt_url_parse).
     local git_repo="${1}"
     local git_base_dir="${2:-${MT_GIT_BASE_DIR:-"${HOME}/Code"}}"
-    
-    # If input already looks like a URL, use it directly
+
+    # Normalise to a fetchable URL first so shorthand inputs (owner/repo,
+    # _alias:owner/repo, etc.) go through the same parse path as full URLs.
     local git_repo_url
-    if [[ "$git_repo" =~ ^(git@|https://) ]]; then
+    if [[ "$git_repo" =~ ^(git@|https?://) ]]; then
         git_repo_url="$git_repo"
     else
-        git_repo_url="$(_mt_repo_url "${git_repo}")"
+        git_repo_url="$(_mt_url_to_fetch "${git_repo}")" || {
+            _mt_error "Invalid git URL: $git_repo"
+            return 1
+        }
     fi
 
-    # Extract the host, username, and repo name from the URL
-    if [[ "$git_repo_url" =~ (git@|https://)([^/:]+)[:/]([^/]+)/([^\.]+) ]]; then
-        local host="${BASH_REMATCH[2]}"
-        local user="${BASH_REMATCH[3]}"
-        local repo="${BASH_REMATCH[4]}"
-        
-        # By default, strip the identity suffix from the host for cleaner paths
-        # e.g., github.com_mbailey -> github.com
-        if [[ "${MT_GIT_INCLUDE_IDENTITY_IN_PATH:-false}" == "true" ]]; then
-            # Keep the full host_identity in the path (e.g., github.com_mbailey)
-            # This allows different SSH identities to have separate checkouts
-            :  # No change needed, use host as-is
-        else
-            # Strip the identity suffix for cleaner paths
-            # github.com_work -> github.com
-            host="${host%_*}"
-        fi
-    else
+    local -A _u
+    if ! _mt_url_parse "$git_repo_url" _u; then
         _mt_error "Invalid git URL: $git_repo_url"
         return 1
+    fi
+
+    local host="${_u[host]}"
+    local user="${_u[owner]}"
+    local repo="${_u[repo_name]}"
+
+    # Identity goes into the path only when MT_GIT_INCLUDE_IDENTITY_IN_PATH=true.
+    # Default: strip identity for cleaner paths (github.com_work -> github.com).
+    if [[ "${MT_GIT_INCLUDE_IDENTITY_IN_PATH:-false}" == "true" ]] && [[ -n "${_u[identity]}" ]]; then
+        host="${host}_${_u[identity]}"
     fi
 
     echo "${git_base_dir}/${host}/${user}/${repo}"
@@ -842,11 +820,12 @@ _mt_clone() {
         export MT_GIT_INCLUDE_IDENTITY_IN_PATH=true
     fi
 
-    # Resolve repository URL and path
+    # Resolve repository URL and path (MT-72: _mt_repo_origin_url preserves the
+    # local-dir-as-repo branch that _mt_repo_url used to handle).
     local git_repo_url
     local git_repo_path
-    
-    git_repo_url="$(_mt_repo_url "${git_repo}")"
+
+    git_repo_url="$(_mt_repo_origin_url "${git_repo}")"
     if [[ -z $git_repo_path ]]; then
         git_repo_path="$(_mt_repo_dir "${git_repo_url}")"
     fi

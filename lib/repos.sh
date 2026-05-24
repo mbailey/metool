@@ -101,10 +101,10 @@ EOF
         continue
       fi
       
-      # Parse owner/repo from the URL
+      # Parse owner/repo from the URL via the canonical parser (MT-72).
       local owner_repo
-      owner_repo=$(_mt_parse_git_url "$remote_url")
-      
+      owner_repo=$(_mt_url_canonicalise "$remote_url" 2>/dev/null) || owner_repo=""
+
       # Skip if we couldn't parse -- warn so the user knows we saw the repo
       # but couldn't represent it in .repos.txt shape (see MT-66).
       if [[ -z "$owner_repo" ]]; then

@@ -326,3 +326,23 @@ _mt_url_to_fetch() {
       ;;
   esac
 }
+
+# _mt_repo_origin_url <repo>
+#
+# Resolve a repo argument to a fetchable URL, including the disk case.
+#
+# If <repo> is an existing directory, echoes `git -C <repo> config --get
+# remote.origin.url` (D7 -- the only filesystem-touching branch the old
+# _mt_repo_url did). Otherwise delegates to _mt_url_to_fetch.
+#
+# Use this from callers (e.g. mt clone, mt module add) that accept either a
+# local dir or a URL spec. Pure URL-shape callers should call _mt_url_to_fetch
+# directly.
+_mt_repo_origin_url() {
+  local repo="${1:-.}"
+  if [[ -d "$repo" ]]; then
+    git -C "$repo" config --get remote.origin.url
+    return
+  fi
+  _mt_url_to_fetch "$repo"
+}

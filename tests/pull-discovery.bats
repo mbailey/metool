@@ -20,6 +20,7 @@ setup() {
   # Source the required files directly
   source "${MT_ROOT}/lib/colors.sh"
   source "${MT_ROOT}/lib/functions.sh"
+  source "${MT_ROOT}/lib/git/url.sh"  # MT-72: manifest.sh depends on _mt_url_parse
   source "${MT_ROOT}/lib/git/manifest.sh"
   source "${MT_ROOT}/lib/git/common.sh"
   source "${MT_ROOT}/lib/git/pull.sh"

@@ -24,6 +24,7 @@ setup() {
   # Source under test
   source "${MT_ROOT}/lib/colors.sh"
   source "${MT_ROOT}/lib/functions.sh"
+  source "${MT_ROOT}/lib/git/url.sh"  # _mt_url_canonicalise (MT-72)
   source "${MT_ROOT}/lib/repos.sh"
 
   # Make _mt_warning emit a stable, parseable line on stderr so tests can

@@ -144,9 +144,10 @@ _mt_git_resolve_repo() {
     repo_url="$repo_spec"
   fi
 
-  # Get the canonical repository path using existing functions
+  # Get the canonical repository path (MT-72 -- _mt_url_to_fetch replaces
+  # _mt_repo_url for URL-shape inputs from .repos.txt).
   local git_repo_url git_repo_path
-  git_repo_url="$(_mt_repo_url "$repo_url")"
+  git_repo_url="$(_mt_url_to_fetch "$repo_url")"
   git_repo_path="$(_mt_repo_dir "$git_repo_url")"
 
   printf "%s\t%s\t%s\n" "$git_repo_url" "$git_repo_path" "$version"

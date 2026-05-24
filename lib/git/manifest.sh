@@ -34,45 +34,23 @@ _mt_git_manifest_parse() {
     local repo="${tokens[0]}"
     local target_name=""
 
-    # Expand GitHub shorthand _identity: to github.com_identity:
-    if [[ "$repo" =~ ^_([^:]*):(.+)$ ]]; then
-      local identity="${BASH_REMATCH[1]}"
-      local repo_path="${BASH_REMATCH[2]}"
-
-      # Handle empty identity (just _:repo) - auto-match owner
-      if [[ -z "$identity" ]]; then
-        # Extract owner from repo path (owner/repo format)
-        if [[ "$repo_path" =~ ^([^/]+)/(.+)$ ]]; then
-          local owner="${BASH_REMATCH[1]}"
-          # Use owner as identity
-          repo="github.com_${owner}:${repo_path}"
-        else
-          _mt_error "Invalid repository format for auto-identity: '$repo_path'. Expected 'owner/repo' format."
-          continue
-        fi
-      else
-        repo="github.com_${identity}:${repo_path}"
-      fi
-    fi
-
-    # Extract repository name from repo spec (remove @version if present)
-    local repo_name="${repo}"
-    if [[ "$repo_name" =~ @ ]]; then
-      repo_name="${repo_name%%@*}"
-    fi
-
-    # Strip host_identity prefix if present (e.g., github.com_mbailey:user/repo -> user/repo)
-    if [[ "$repo_name" =~ ^[^:]+:[^/]+/.+ ]]; then
-      # Extract just the org/repo part after the colon
-      local repo_path="${repo_name#*:}"
-      base_name="${repo_path##*/}"
+    # MT-72: delegate URL recognition (alias expansion, @version stripping,
+    # host_identity prefix detection, .git stripping) to the canonical parser.
+    # The previous %%@* greedy strip is the D9 bug class -- it eats `git@` and
+    # yields base_name=git for any git@host:owner/repo input. The new parser
+    # uses an anchored regex (@[^/:@]+$) that avoids that.
+    #
+    # The `repo` token is emitted verbatim; downstream callers re-parse it via
+    # _mt_url_to_fetch which handles every shape (_alias:, host_identity:,
+    # https://..., git@host:..., owner/repo) uniformly.
+    local base_name
+    local -A _u
+    if _mt_url_parse "$repo" _u; then
+      base_name="${_u[repo_name]}"
     else
-      # Get the base name (last part after /)
-      base_name="${repo_name##*/}"
+      _mt_error "${_u[error]:-unparseable URL}: '$repo'"
+      continue
     fi
-
-    # Always strip .git extension from the base name for cleaner symlinks
-    base_name="${base_name%.git}"
 
     # Parse arguments based on number of tokens
     case ${#tokens[@]} in

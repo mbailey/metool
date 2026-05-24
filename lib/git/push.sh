@@ -24,9 +24,9 @@ _mt_git_push_repo() {
     repo_url="$repo_spec"
   fi
 
-  # Get the canonical repository path
+  # Get the canonical repository path (MT-72)
   local git_repo_url git_repo_path
-  git_repo_url="$(_mt_repo_url "$repo_url")"
+  git_repo_url="$(_mt_url_to_fetch "$repo_url")"
   git_repo_path="$(_mt_repo_dir "$git_repo_url")"
 
   if [[ -z "$git_repo_path" ]]; then
@@ -176,7 +176,7 @@ _mt_git_push_process_repos() {
     fi
 
     local git_repo_url git_repo_path
-    git_repo_url="$(_mt_repo_url "$repo_url")"
+    git_repo_url="$(_mt_url_to_fetch "$repo_url")"
     git_repo_path="$(_mt_repo_dir "$git_repo_url")"
 
     # Skip if repository doesn't exist
@@ -372,7 +372,7 @@ EOF
         fi
 
         local git_repo_url git_repo_path status
-        git_repo_url="$(_mt_repo_url "$repo_url")"
+        git_repo_url="$(_mt_url_to_fetch "$repo_url")"
         git_repo_path="$(_mt_repo_dir "$git_repo_url")"
 
         if [[ ! -d "$git_repo_path/.git" ]]; then
