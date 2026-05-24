@@ -5,8 +5,9 @@
 _mt_repos_discover() {
   local recursive=false
   local columnise=false
+  local raw=false
   local search_path="."
-  
+
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -18,15 +19,25 @@ _mt_repos_discover() {
         columnise=true
         shift
         ;;
+      --raw)
+        raw=true
+        shift
+        ;;
       -h|--help)
         cat << EOF
-Usage: mt git repos [-r] [-c] [PATH]
+Usage: mt git repos [-r] [-c] [--raw] [PATH]
 
 List git repositories and output in repos.txt format
 
 Options:
   -r, --recursive    Recursively scan subdirectories
   -c, --columnise    Force column formatting even when piping to file
+      --raw          Emit the URL as stored in .git/config (no insteadOf rewrite).
+                     Default uses 'git remote get-url' which applies the user's
+                     url.<base>.insteadOf rewrites -- useful for "what does git
+                     actually fetch from". Use --raw to see the alias form the
+                     user originally cloned with (e.g. failmode:mbailey/repo
+                     instead of the rewritten ms2:git/repos/repo).
   PATH              Directory to scan (default: current directory)
 
 Output format:
@@ -40,6 +51,7 @@ Examples:
   mt git repos -r           # List repos recursively
   mt git repos -c > repos.txt  # Create columnised repos.txt file
   mt git repos -r ~/        # List repos recursively from home
+  mt git repos --raw        # Emit URLs as stored, not as rewritten by insteadOf
 EOF
         return 0
         ;;
@@ -80,9 +92,17 @@ EOF
         continue
       fi
       
-      # Get the remote origin URL
+      # Get the remote origin URL.
+      #   default:  git remote get-url -- applies url.<base>.insteadOf rewrites
+      #             (i.e. what git would actually fetch from)
+      #   --raw:    git config --get -- the raw value stored in .git/config
+      #             (preserves alias prefixes the user originally cloned with)
       local remote_url
-      remote_url=$(cd "$target" && git remote get-url origin 2>/dev/null)
+      if [[ "$raw" == "true" ]]; then
+        remote_url=$(cd "$target" && git config --get remote.origin.url 2>/dev/null)
+      else
+        remote_url=$(cd "$target" && git remote get-url origin 2>/dev/null)
+      fi
       
       # Skip if no remote
       if [[ -z "$remote_url" ]]; then
