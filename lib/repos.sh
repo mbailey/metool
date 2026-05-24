@@ -5,7 +5,6 @@
 _mt_repos_discover() {
   local recursive=false
   local columnise=false
-  local raw=false
   local search_path="."
 
   # Parse arguments
@@ -19,26 +18,22 @@ _mt_repos_discover() {
         columnise=true
         shift
         ;;
-      --raw)
-        raw=true
-        shift
-        ;;
       -h|--help)
         cat << EOF
-Usage: mt git repos [-r] [-c] [--raw] [PATH]
+Usage: mt git repos [-r] [-c] [PATH]
 
-List git repositories and output in repos.txt format
+List git repositories and output in repos.txt format.
+
+URLs are read from .git/config verbatim -- the alias form you originally
+cloned with (e.g. failmode:mbailey/repo), not the post-insteadOf rewrite
+(e.g. ms2:git/repos/repo). The reasoning: this output is for your
+.repos.txt, which should reflect what you wrote. If you want git's
+effective fetch URL, use 'git remote get-url' directly.
 
 Options:
   -r, --recursive    Recursively scan subdirectories
   -c, --columnise    Force column formatting even when piping to file
-      --raw          Emit the URL as stored in .git/config (no insteadOf rewrite).
-                     Default uses 'git remote get-url' which applies the user's
-                     url.<base>.insteadOf rewrites -- useful for "what does git
-                     actually fetch from". Use --raw to see the alias form the
-                     user originally cloned with (e.g. failmode:mbailey/repo
-                     instead of the rewritten ms2:git/repos/repo).
-  PATH              Directory to scan (default: current directory)
+  PATH               Directory to scan (default: current directory)
 
 Output format:
   owner/repo [alias]
@@ -51,7 +46,6 @@ Examples:
   mt git repos -r           # List repos recursively
   mt git repos -c > repos.txt  # Create columnised repos.txt file
   mt git repos -r ~/        # List repos recursively from home
-  mt git repos --raw        # Emit URLs as stored, not as rewritten by insteadOf
 EOF
         return 0
         ;;
@@ -92,17 +86,15 @@ EOF
         continue
       fi
       
-      # Get the remote origin URL.
-      #   default:  git remote get-url -- applies url.<base>.insteadOf rewrites
-      #             (i.e. what git would actually fetch from)
-      #   --raw:    git config --get -- the raw value stored in .git/config
-      #             (preserves alias prefixes the user originally cloned with)
+      # Read the remote URL verbatim from .git/config -- the value the user
+      # actually wrote, with no url.<base>.insteadOf rewrites applied. This
+      # output is destined for a .repos.txt the user maintains, so it should
+      # reflect what they typed (alias form, etc.) rather than git's
+      # effective fetch URL. Using `git remote get-url` here would silently
+      # rewrite e.g. `failmode:mbailey/repo` to `ms2:git/repos/repo` -- not
+      # what we want.
       local remote_url
-      if [[ "$raw" == "true" ]]; then
-        remote_url=$(cd "$target" && git config --get remote.origin.url 2>/dev/null)
-      else
-        remote_url=$(cd "$target" && git remote get-url origin 2>/dev/null)
-      fi
+      remote_url=$(cd "$target" && git config --get remote.origin.url 2>/dev/null)
       
       # Skip if no remote
       if [[ -z "$remote_url" ]]; then

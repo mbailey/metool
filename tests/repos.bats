@@ -148,14 +148,13 @@ _make_repo() {
 }
 
 # ----------------------------------------------------------------------------
-# MT-70: --raw flag emits unrewritten URLs from .git/config
+# MT-70: read raw .git/config URLs, ignore url.<base>.insteadOf rewrites
 # ----------------------------------------------------------------------------
 
-# Helper: set a local insteadOf rule on $TMPDIR's git config that rewrites
-# `failmode:` to `ms2:git/repos/`. Scoped to the per-test gitconfig (we set
-# GIT_CONFIG_GLOBAL=/dev/null in setup, so we point GIT_CONFIG_GLOBAL at a
-# real file for the duration of these tests instead). Avoids polluting the
-# host's real ~/.gitconfig.
+# Helper: install an insteadOf rule in a per-test gitconfig. We set
+# GIT_CONFIG_GLOBAL=/dev/null in setup() for hygiene, so to test rewrite
+# behaviour we have to point GIT_CONFIG_GLOBAL at a file we control rather
+# than touching the host's real ~/.gitconfig.
 _with_insteadof_rule() {
   local rule_file="${TMPDIR}/test.gitconfig"
   cat > "$rule_file" <<'EOF'
@@ -165,39 +164,39 @@ EOF
   export GIT_CONFIG_GLOBAL="$rule_file"
 }
 
-@test "mt git repos --raw: emits raw .git/config URL, not the insteadOf rewrite" {
+@test "mt git repos: emits raw .git/config URL, NOT the insteadOf rewrite" {
+  # Core MT-70 behaviour: the URL git would actually FETCH from is the
+  # rewritten one (ms2:git/repos/skillify), but mt git repos' job is to
+  # produce a .repos.txt that reflects what the user *wrote* -- so it must
+  # emit the alias form (failmode:mbailey/skillify) from .git/config.
   _with_insteadof_rule
   _make_repo skillify 'failmode:mbailey/skillify'
 
-  # Sanity check: without --raw, the rewrite kicks in.
-  run --separate-stderr -0 _mt_repos_discover .
-  # ms2:git/repos/skillify (rewritten). The columnise step strips trailing
-  # `.git` only when alias != repo_name; here we expect the rewritten form.
-  [[ "$output" == *"ms2:git/repos/skillify"* ]]
+  # Sanity: confirm the rewrite IS in effect for this repo.
+  run -0 git -C "${TMPDIR}/skillify" remote get-url origin
+  [ "$output" = 'ms2:git/repos/skillify' ]
 
-  # With --raw, we get the raw form.
-  run --separate-stderr -0 _mt_repos_discover --raw .
+  # mt git repos must bypass the rewrite and emit the raw form.
+  run --separate-stderr -0 _mt_repos_discover .
   [ "$output" = 'failmode:mbailey/skillify' ]
   [ -z "$stderr" ]
 }
 
-@test "mt git repos --raw: no insteadOf rules -- output identical to default" {
-  # Without any rewrite rules, --raw and default must produce the same output.
-  # Regression guard: --raw shouldn't introduce a parsing difference.
+@test "mt git repos: with no insteadOf rules, behaviour matches the natural URL" {
+  # Regression guard: switching from `git remote get-url` to `git config --get`
+  # shouldn't change output when no rewrites are configured. Both should
+  # produce the same parsed entry.
   _make_repo keycutter 'git@github.com:mbailey/keycutter.git'
 
   run --separate-stderr -0 _mt_repos_discover .
-  local default_out="$output"
-
-  run --separate-stderr -0 _mt_repos_discover --raw .
-  [ "$output" = "$default_out" ]
+  [ "$output" = 'mbailey/keycutter' ]
   [ -z "$stderr" ]
 }
 
-@test "mt git repos --raw: round-trips every URL shape _mt_parse_git_url accepts" {
-  # For each URL shape, --raw should pass it through _mt_parse_git_url and
-  # produce the canonical entry, with no warning. This proves --raw composes
-  # cleanly with the post-MT-68 parser.
+@test "mt git repos: handles every URL shape _mt_parse_git_url accepts" {
+  # End-to-end regression across all five URL shapes the parser supports.
+  # If anyone reorders the parser patterns or breaks one of them, this
+  # catches it via the discover path rather than only the unit tests.
   _make_repo a 'git@github.com:owner/a.git'
   _make_repo b 'git@github.com:owner/b'
   _make_repo c 'https://github.com/owner/c.git'
@@ -205,9 +204,8 @@ EOF
   _make_repo e 'failmode:owner/e.git'
   _make_repo f 'failmode:owner/f'
 
-  run --separate-stderr -0 _mt_repos_discover --raw .
+  run --separate-stderr -0 _mt_repos_discover .
 
-  # All six repos should appear in output, none in stderr warnings.
   [ -z "$stderr" ]
   [[ "$output" == *"owner/a"* ]]
   [[ "$output" == *"owner/b"* ]]
@@ -217,8 +215,8 @@ EOF
   [[ "$output" == *"failmode:owner/f"* ]]
 }
 
-@test "mt git repos --help: mentions --raw flag" {
+@test "mt git repos --help: documents the raw-config behaviour" {
   run -0 _mt_repos_discover --help
-  [[ "$output" == *"--raw"* ]]
   [[ "$output" == *"insteadOf"* ]]
+  [[ "$output" == *".git/config"* ]]
 }
