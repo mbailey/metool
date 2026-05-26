@@ -22,6 +22,12 @@ fi
 
 set -e
 
+# Detect non-interactive mode (curl | bash)
+INTERACTIVE=true
+if [[ ! -t 0 ]]; then
+    INTERACTIVE=false
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -99,13 +105,17 @@ install_macos_deps() {
         log "✓ Modern bash installed"
     fi
     
-    # Optional: bash-completion
+    # Optional: bash-completion (skip prompt in non-interactive mode)
     if ! brew list bash-completion@2 &>/dev/null; then
-        info "bash-completion@2 not found (optional)"
-        read -p "Install bash-completion@2 for better tab completion? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            deps_to_install+=("bash-completion@2")
+        if [[ "$INTERACTIVE" == "true" ]]; then
+            info "bash-completion@2 not found (optional)"
+            read -p "Install bash-completion@2 for better tab completion? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                deps_to_install+=("bash-completion@2")
+            fi
+        else
+            info "bash-completion@2 not found (optional, skipping in non-interactive mode)"
         fi
     else
         log "✓ bash-completion@2 installed"
