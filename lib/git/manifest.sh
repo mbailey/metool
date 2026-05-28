@@ -181,6 +181,9 @@ _mt_git_manifest_parse_args() {
   local quick=false
   local rebase=false
   local show_help=false
+  # MT-73: parallel job count. Default 1 (off / serial). MT_GIT_JOBS env
+  # var seeds the default; an explicit --parallel N flag wins.
+  local parallel="${MT_GIT_JOBS:-1}"
 
   # Check for help first, before any file discovery
   for arg in "$@"; do
@@ -198,6 +201,7 @@ _mt_git_manifest_parse_args() {
     echo "QUICK=$quick"
     echo "REBASE=$rebase"
     echo "SHOW_HELP=$show_help"
+    echo "PARALLEL=$parallel"
     return 0
   fi
 
@@ -223,6 +227,18 @@ _mt_git_manifest_parse_args() {
       -r|--rebase)
         rebase=true
         shift
+        ;;
+      -P|--parallel)
+        if [[ -z "${2:-}" ]] || ! [[ "$2" =~ ^[0-9]+$ ]]; then
+          _mt_error "--parallel requires a positive integer (got: '${2:-}')"
+          return 1
+        fi
+        if (( $2 < 1 )); then
+          _mt_error "--parallel must be >= 1 (got: $2)"
+          return 1
+        fi
+        parallel="$2"
+        shift 2
         ;;
       -p|--protocol)
         export MT_GIT_PROTOCOL_DEFAULT="$2"
@@ -308,6 +324,7 @@ _mt_git_manifest_parse_args() {
   echo "QUICK=$quick"
   echo "REBASE=$rebase"
   echo "SHOW_HELP=$show_help"
+  echo "PARALLEL=$parallel"
 
   return 0
 }

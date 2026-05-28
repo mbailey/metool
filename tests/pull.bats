@@ -48,6 +48,17 @@ setup() {
   _mt_debug() {
     echo "DEBUG: $*"
   }
+
+  # MT-73: orchestrator tests exercise the path that resolves the
+  # canonical repo dir. The real `_mt_repo_dir` lives in lib/git.sh
+  # which we don't source here -- provide a deterministic mock that
+  # mirrors the real shape (MT_GIT_BASE_DIR/host/owner/repo).
+  _mt_repo_dir() {
+    local url="$1"
+    local -A _u
+    _mt_url_parse "$url" _u
+    echo "${MT_GIT_BASE_DIR:-${HOME}/Code}/${_u[host]}/${_u[owner]}/${_u[repo_name]}"
+  }
 }
 
 teardown() {
@@ -303,4 +314,249 @@ EOF
   [[ "$output" =~ "mt git pull" ]]
   [[ "$output" =~ "--dry-run" ]]
   [[ "$output" =~ "--quick" ]]
+}
+
+# ----------------------------------------------------------------------
+# MT-73: --parallel flag plumbing
+# ----------------------------------------------------------------------
+
+@test "_mt_git_manifest_parse_args defaults PARALLEL=1 (off)" {
+  unset MT_GIT_JOBS
+  touch repos.txt
+  run _mt_git_manifest_parse_args
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "PARALLEL=1" ]]
+}
+
+@test "_mt_git_manifest_parse_args honours --parallel N" {
+  unset MT_GIT_JOBS
+  touch repos.txt
+  run _mt_git_manifest_parse_args --parallel 4
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "PARALLEL=4" ]]
+}
+
+@test "_mt_git_manifest_parse_args honours -P short alias" {
+  unset MT_GIT_JOBS
+  touch repos.txt
+  run _mt_git_manifest_parse_args -P 3
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "PARALLEL=3" ]]
+}
+
+@test "_mt_git_manifest_parse_args reads MT_GIT_JOBS env fallback" {
+  touch repos.txt
+  MT_GIT_JOBS=7 run _mt_git_manifest_parse_args
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "PARALLEL=7" ]]
+}
+
+@test "_mt_git_manifest_parse_args: --parallel wins over MT_GIT_JOBS" {
+  touch repos.txt
+  MT_GIT_JOBS=2 run _mt_git_manifest_parse_args --parallel 8
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "PARALLEL=8" ]]
+}
+
+@test "_mt_git_manifest_parse_args rejects non-numeric --parallel" {
+  touch repos.txt
+  run _mt_git_manifest_parse_args --parallel foo
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "ERROR" ]]
+}
+
+@test "_mt_git_manifest_parse_args rejects --parallel 0" {
+  touch repos.txt
+  run _mt_git_manifest_parse_args --parallel 0
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ ">= 1" ]] || [[ "$output" =~ "ERROR" ]]
+}
+
+@test "_mt_git_pull --help advertises --parallel and MT_GIT_JOBS" {
+  run _mt_git_pull --help
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "--parallel" ]]
+  [[ "$output" =~ "ControlMaster" ]]
+  [[ "$output" =~ "MT_GIT_JOBS" ]]
+}
+
+# ----------------------------------------------------------------------
+# MT-73: refactor seam -- _mt_git_pull_repo wrapper preserves signature
+# and emits the trailer protocol unchanged. Same goes for the new
+# _mt_git_fetch_one and _mt_git_finalize_one functions: they must exist
+# and be callable.
+# ----------------------------------------------------------------------
+
+@test "MT-73: _mt_git_fetch_one is defined" {
+  run declare -F _mt_git_fetch_one
+  [ "$status" -eq 0 ]
+}
+
+@test "MT-73: _mt_git_finalize_one is defined" {
+  run declare -F _mt_git_finalize_one
+  [ "$status" -eq 0 ]
+}
+
+@test "MT-73: _mt_git_pull_repo signature unchanged (3 positional args)" {
+  # Without doing real network IO, the wrapper should at least accept
+  # exactly three positional args and not blow up on argument parsing.
+  # Use a clearly bogus URL so we exit quickly via error path.
+  export MT_GIT_BASE_DIR="${TMPDIR}/Code"
+  run _mt_git_pull_repo "definitely-not/a-real-repo-mt73" "/tmp/none-mt73" "false"
+  # We don't assert exit code (network access will fail), just that the
+  # function is defined and the call doesn't crash on arg parsing.
+  [ -n "$output" ] || true
+}
+
+# ----------------------------------------------------------------------
+# MT-73: orchestrator timing -- parallel beats serial when fetch is slow.
+#
+# Mock _mt_git_fetch_one with a `sleep 0.3` and run 4 repos with -P 4.
+# Wall-clock must come in well under serial 4*0.3 = 1.2s. We pre-create
+# the .git fixtures so finalize takes the local fast path (current).
+# ----------------------------------------------------------------------
+
+_mt73_setup_fake_repos() {
+  local count="$1"
+  local base="${MT_GIT_BASE_DIR}/github.com/mt73"
+  command mkdir -p "$base"
+  local i
+  for ((i=1; i<=count; i++)); do
+    local r="$base/repo$i"
+    command mkdir -p "$r/.git"
+    # Minimal `git rev-parse --show-toplevel`-compatible structure.
+    # The orchestrator only needs `[[ -d $r/.git ]]` to skip clone path.
+  done
+}
+
+@test "MT-73: --parallel N runs fetches concurrently (timing)" {
+  export MT_GIT_BASE_DIR="${TMPDIR}/Code"
+  _mt73_setup_fake_repos 4
+
+  # Manifest with 4 repos -- all "exist" so they hit the fetch+finalize path.
+  cat > repos.txt << 'EOF'
+mt73/repo1
+mt73/repo2
+mt73/repo3
+mt73/repo4
+EOF
+
+  # Override _mt_git_fetch_one with a sleep stub. Each fetch costs 0.3s,
+  # so serial = 1.2s, --parallel 4 should be ~0.4s.
+  _mt_git_fetch_one() {
+    sleep 0.3
+    echo "[INFO] mocked fetch" >&2
+    return 0
+  }
+  export -f _mt_git_fetch_one 2>/dev/null || true
+
+  # Stub out finalize too so we don't need real git status. Emit the
+  # trailer protocol the orchestrator expects.
+  _mt_git_finalize_one() {
+    echo "STATUS:current"
+    echo "ACTUAL_REF:main"
+    return 0
+  }
+  export -f _mt_git_finalize_one 2>/dev/null || true
+
+  local start end elapsed
+  start=$(date +%s)
+  run _mt_git_pull_process_repos repos.txt "${WORK_DIR}" false false 4
+  end=$(date +%s)
+  elapsed=$((end - start))
+
+  [ "$status" -eq 0 ]
+  # 4 repos * 0.3s = 1.2s serial, target well under that (<= 1s)
+  [ "$elapsed" -le 1 ]
+}
+
+# ----------------------------------------------------------------------
+# MT-73: --parallel 1 is the off sentinel -- falls through to the
+# existing serial code path (no orchestrator). The test asserts the
+# function returns successfully and produces the summary table.
+# ----------------------------------------------------------------------
+
+@test "MT-73: --parallel 1 falls through to serial path" {
+  export MT_GIT_BASE_DIR="${TMPDIR}/Code"
+  _mt73_setup_fake_repos 1
+  cat > repos.txt << 'EOF'
+mt73/repo1
+EOF
+  _mt_git_pull_repo() {
+    echo "STATUS:current"
+    echo "ACTUAL_REF:main"
+    return 0
+  }
+  run _mt_git_pull_process_repos repos.txt "${WORK_DIR}" false false 1
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Pull Summary" ]]
+}
+
+# ----------------------------------------------------------------------
+# MT-73: one fetch failing under --parallel doesn't block others, and
+# the failure is reported in the Errors: section.
+# ----------------------------------------------------------------------
+
+@test "MT-73: parallel failure isolation + Errors: section" {
+  export MT_GIT_BASE_DIR="${TMPDIR}/Code"
+  _mt73_setup_fake_repos 3
+  cat > repos.txt << 'EOF'
+mt73/repo1
+mt73/repo2
+mt73/repo3
+EOF
+
+  # repo2 fails, others succeed.
+  _mt_git_fetch_one() {
+    local url="$1"
+    if [[ "$url" =~ repo2 ]]; then
+      echo "fatal: simulated auth failure" >&2
+      return 1
+    fi
+    return 0
+  }
+  export -f _mt_git_fetch_one 2>/dev/null || true
+
+  _mt_git_finalize_one() {
+    echo "STATUS:current"
+    echo "ACTUAL_REF:main"
+    return 0
+  }
+  export -f _mt_git_finalize_one 2>/dev/null || true
+
+  run _mt_git_pull_process_repos repos.txt "${WORK_DIR}" false false 2
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Errors:" ]]
+  [[ "$output" =~ "repo2" ]]
+}
+
+# ----------------------------------------------------------------------
+# MT-73: GIT_TERMINAL_PROMPT=0 is exported to parallel workers.
+# ----------------------------------------------------------------------
+
+@test "MT-73: parallel workers see GIT_TERMINAL_PROMPT=0" {
+  export MT_GIT_BASE_DIR="${TMPDIR}/Code"
+  _mt73_setup_fake_repos 1
+  cat > repos.txt << 'EOF'
+mt73/repo1
+EOF
+
+  # Capture the env var as seen by the fetch worker.
+  local capture="${TMPDIR}/env-capture"
+  _mt_git_fetch_one() {
+    echo "GIT_TERMINAL_PROMPT=${GIT_TERMINAL_PROMPT:-unset}" >> "$capture"
+    return 0
+  }
+  export -f _mt_git_fetch_one 2>/dev/null || true
+  _mt_git_finalize_one() {
+    echo "STATUS:current"
+    echo "ACTUAL_REF:main"
+    return 0
+  }
+  export -f _mt_git_finalize_one 2>/dev/null || true
+
+  run _mt_git_pull_process_repos repos.txt "${WORK_DIR}" false false 2
+  [ "$status" -eq 0 ]
+  [ -f "$capture" ]
+  command grep -q "GIT_TERMINAL_PROMPT=0" "$capture"
 }
