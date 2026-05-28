@@ -320,6 +320,56 @@ _mt_url_to_fetch() {
   esac
 }
 
+# _mt_url_to_host <url>
+#
+# Echo the SSH/connection host for ControlMaster purposes. This is the host
+# string the SSH client actually keys its master socket off -- so ssh_config
+# `Host` aliases (no dot) return the alias verbatim, identity-suffixed hosts
+# return `host_identity` (matching the form `_mt_url_to_fetch` emits), and
+# port suffixes on `ssh://` URLs are stripped.
+#
+# Empty output (and rc=1) for inputs with no remote host: local paths and
+# unparseable strings. Callers (the parallel pre-warm pass) treat empty as
+# "skip this repo for pre-warm".
+_mt_url_to_host() {
+  local url="${1:?url required}"
+
+  # ssh:// is not produced by _mt_url_parse (the canonical parser focuses on
+  # the forms .repos.txt accepts). Handle it inline here -- it has a real
+  # ControlMaster identity and would otherwise misclassify.
+  if [[ "$url" =~ ^ssh://([^@/]+@)?([^:/]+)(:[0-9]+)?(/.*)?$ ]]; then
+    echo "${BASH_REMATCH[2]}"
+    return 0
+  fi
+
+  local -A _mt_url_h_p
+  if ! _mt_url_parse "$url" _mt_url_h_p; then
+    return 1
+  fi
+
+  local host="${_mt_url_h_p[host]}"
+  local identity="${_mt_url_h_p[identity]}"
+
+  case "${_mt_url_h_p[type]}" in
+    ssh|alias)
+      # Identity-suffixed hosts get their own ControlMaster socket: the
+      # ssh_config IdentityFile branch keys off the alias, not the resolved
+      # hostname, so distinct aliases must produce distinct host strings.
+      [[ -n "$identity" ]] && host="${host}_${identity}"
+      echo "$host"
+      ;;
+    https|http|shorthand)
+      echo "$host"
+      ;;
+    local)
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 # _mt_repo_origin_url <repo>
 #
 # Resolve a repo argument to a fetchable URL, including the disk case.

@@ -534,3 +534,86 @@ _assert_roundtrip() {
 @test "roundtrip: host shorthand" {
   _assert_roundtrip "github.com/owner/repo"
 }
+
+# ----------------------------------------------------------------------
+# _mt_url_to_host -- MT-73 ControlMaster pre-warm helper.
+#
+# The host string is what ssh keys its master socket off. Distinct
+# identities (host_identity form) must produce distinct strings so each
+# gets its own master socket. ssh_config Host aliases (no dot) are
+# returned verbatim (ControlMaster keys off the alias, not the resolved
+# hostname).
+#
+# Matrix mirrors the table in MT-73 design.md.
+# ----------------------------------------------------------------------
+
+@test "to_host: SSH git@host:path -> host" {
+  run _mt_url_to_host "git@github.com:foo/bar.git"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com" ]
+}
+
+@test "to_host: SSH git@host:path (no .git) -> host" {
+  run _mt_url_to_host "git@github.com:foo/bar"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com" ]
+}
+
+@test "to_host: ssh:// url -> host (port stripped)" {
+  run _mt_url_to_host "ssh://git@github.com/foo/bar.git"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com" ]
+}
+
+@test "to_host: ssh:// with explicit port -> host (port stripped)" {
+  run _mt_url_to_host "ssh://git@github.com:22/foo/bar.git"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com" ]
+}
+
+@test "to_host: https URL -> host" {
+  run _mt_url_to_host "https://github.com/foo/bar.git"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com" ]
+}
+
+@test "to_host: https URL gitlab -> gitlab.com" {
+  run _mt_url_to_host "https://gitlab.com/x/y"
+  [ "$status" -eq 0 ]
+  [ "$output" = "gitlab.com" ]
+}
+
+@test "to_host: SSH deep path -> host" {
+  run _mt_url_to_host "git@gitlab.com:group/sub/repo.git"
+  [ "$status" -eq 0 ]
+  [ "$output" = "gitlab.com" ]
+}
+
+@test "to_host: ssh_config alias preserved verbatim (no dot)" {
+  run _mt_url_to_host "failmode:owner/repo"
+  [ "$status" -eq 0 ]
+  [ "$output" = "failmode" ]
+}
+
+@test "to_host: custom user@host -> host (user stripped)" {
+  run _mt_url_to_host "mike@codeberg.org:foo/bar"
+  [ "$status" -eq 0 ]
+  [ "$output" = "codeberg.org" ]
+}
+
+@test "to_host: SSH with identity -> host_identity (distinct ControlMaster socket)" {
+  run _mt_url_to_host "git@github.com_mbailey:mbailey/keycutter.git"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com_mbailey" ]
+}
+
+@test "to_host: bare shorthand -> default host" {
+  run _mt_url_to_host "mbailey/keycutter"
+  [ "$status" -eq 0 ]
+  [ "$output" = "github.com" ]
+}
+
+@test "to_host: local path returns rc=1" {
+  run _mt_url_to_host "/path/to/repo"
+  [ "$status" -eq 1 ]
+}
