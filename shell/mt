@@ -262,4 +262,10 @@ mt() {
   fi
 }
 
-mt "$@"
+# Auto-invoke `mt` after sourcing so that adding `source path/to/shell/mt` to
+# an interactive shell rc both defines the function AND runs the no-args
+# package-sourcing path. The `_MT_BIN_WRAPPER` guard suppresses this when
+# `bin/mt` is the caller -- the binary wrapper invokes `mt "$@"` explicitly
+# after this source, so without the guard every command would run twice
+# (MT-79).
+[[ -z "${_MT_BIN_WRAPPER:-}" ]] && mt "$@"
