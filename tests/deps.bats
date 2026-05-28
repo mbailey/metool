@@ -90,12 +90,16 @@ setup() {
     fi
   fi
 
-  # Mock command to simulate all deps present
+  # Mock command to simulate all deps present.
+  # Includes `symlinks` because _mt_check_deps treats it as a required dep
+  # (lib/deps.sh "Check for symlinks command (required for mt doctor and
+  # mt clean)" block). Without mocking it the test fails on any machine
+  # that doesn't actually have `symlinks` installed.
   command() {
     case "$1" in
       -v)
         case "$2" in
-          realpath|stow|gln|bats) return 0 ;;
+          realpath|stow|gln|bats|symlinks) return 0 ;;
           *) builtin command "$@" ;;
         esac
         ;;
