@@ -279,14 +279,21 @@ _mt_git_pull_parallel_fetch_wave() {
   # or fail individually.
   local US=$'\x1f'
   local -A seen_hosts=()
-  local entry url path slug host
+  local entry url path slug host resolved_url
   for entry in "${_wave_entries[@]}"; do
     IFS="$US" read -r url path slug <<< "$entry"
-    host=$(_mt_url_to_host "$url" 2>/dev/null) || continue
+    # MT-76: resolve `insteadOf` rewrites before extracting the host, so
+    # we pre-warm the host that fetches will actually contact (not the
+    # raw manifest URL, which git may rewrite via url.<base>.insteadOf
+    # at fetch time). `git ls-remote --get-url` applies the rewrites
+    # without making any network call -- it's pure config lookup.
+    resolved_url=$(git ls-remote --get-url "$url" 2>/dev/null) || resolved_url="$url"
+    [[ -z "$resolved_url" ]] && resolved_url="$url"
+    host=$(_mt_url_to_host "$resolved_url" 2>/dev/null) || continue
     [[ -z "$host" ]] && continue
     if [[ -z "${seen_hosts[$host]:-}" ]]; then
       seen_hosts[$host]=1
-      _mt_debug "Pre-warming SSH ControlMaster for host: $host"
+      _mt_debug "Pre-warming SSH ControlMaster for host: $host (resolved from: $url)"
       GIT_TERMINAL_PROMPT=0 _mt_git_fetch_one "$url" "$path" \
         >/dev/null 2>>"$tmpdir/prewarm.err" || \
         _mt_debug "Pre-warm fetch for $host failed; parallel pass will proceed"

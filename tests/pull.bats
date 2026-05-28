@@ -560,3 +560,67 @@ EOF
   [ -f "$capture" ]
   command grep -q "GIT_TERMINAL_PROMPT=0" "$capture"
 }
+
+# ----------------------------------------------------------------------
+# MT-76: pre-warm resolves url.<base>.insteadOf rewrites before
+# extracting the host, so we pre-warm the host that fetches will
+# actually contact -- not the raw manifest URL. Without this, manifests
+# that use a host alias (e.g. failmode:foo) which git rewrites at fetch
+# time (e.g. to ms2:git/repos/foo) burn a wasted pre-warm tap on the
+# wrong host AND need a second tap when the parallel wave hits the
+# real host.
+# ----------------------------------------------------------------------
+
+@test "MT-76: pre-warm uses post-insteadOf host" {
+  export MT_GIT_BASE_DIR="${TMPDIR}/Code"
+  _mt73_setup_fake_repos 1
+
+  # Configure a sandbox git config with an insteadOf rule that rewrites
+  # "fakeorigin:" to "fakemirror:". We need an isolated config so the
+  # test doesn't depend on (or pollute) the user's real ~/.gitconfig.
+  # Use multi-line insteadOf entries that match BOTH the raw scp-style
+  # form (`fakeorigin:org/`) AND the canonical `git@fakeorigin:` form
+  # that _mt_url_to_fetch produces. Mike's real-world config has the
+  # same pattern (one insteadOf per prefix variant) -- this mirrors
+  # that, so the test exercises the realistic case.
+  local sandbox_gitconfig="${TMPDIR}/gitconfig-MT76"
+  cat > "$sandbox_gitconfig" <<'EOF'
+[url "fakemirror:org/"]
+  insteadOf = fakeorigin:org/
+  insteadOf = git@fakeorigin:org/
+EOF
+  export GIT_CONFIG_GLOBAL="$sandbox_gitconfig"
+
+  cat > repos.txt << 'EOF'
+fakeorigin:org/repo1
+EOF
+
+  # Capture every URL the pre-warm step hands to _mt_url_to_host. The
+  # capture-file path must be in the environment so the function (which
+  # gets invoked under bats' `run` subshell) can find it.
+  export MT76_HOST_CAPTURE="${TMPDIR}/MT76-host-capture"
+  : > "$MT76_HOST_CAPTURE"
+  _mt_url_to_host() {
+    echo "called-with: $1" >> "$MT76_HOST_CAPTURE"
+    # Return the substring before the first colon (close enough for
+    # this test -- we only care which URL the function was asked about).
+    echo "${1%%:*}"
+  }
+  export -f _mt_url_to_host
+
+  _mt_git_fetch_one() { return 0; }
+  _mt_git_finalize_one() {
+    echo "STATUS:current"
+    echo "ACTUAL_REF:main"
+    return 0
+  }
+  export -f _mt_git_fetch_one _mt_git_finalize_one
+
+  run _mt_git_pull_process_repos repos.txt "${WORK_DIR}" false false 2
+  [ "$status" -eq 0 ]
+
+  # The pre-warm should have asked _mt_url_to_host about the RESOLVED
+  # URL ("fakemirror:org/repo1"), not the raw manifest URL.
+  command grep -q "called-with: fakemirror:" "$MT76_HOST_CAPTURE"
+  ! command grep -q "called-with: fakeorigin:" "$MT76_HOST_CAPTURE"
+}
