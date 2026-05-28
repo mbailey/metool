@@ -34,6 +34,12 @@ fi
 # Find metool installation and export MT_ROOT before sourcing
 # This prevents shell/mt from calculating MT_ROOT incorrectly when sourced from snapshots
 
+# MT-79: signal to shell/mt that this is the binary wrapper, so its trailing
+# `mt "$@"` self-invocation skips. Without this, every command would run
+# twice: once from shell/mt's auto-invoke at source time, once from line 62
+# below.
+export _MT_BIN_WRAPPER=1
+
 # If MT_ROOT is already set, use it (allows explicit override)
 if [[ -n "$MT_ROOT" ]] && [[ -f "$MT_ROOT/shell/mt" ]]; then
     source "$MT_ROOT/shell/mt"
