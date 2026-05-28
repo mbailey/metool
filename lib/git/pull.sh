@@ -258,6 +258,78 @@ _mt_git_pull_repo() {
     "$version" "$do_rebase" "$just_cloned"
 }
 
+# MT-80: Compute the set of hosts the parallel fetch wave will actually
+# contact, based on each entry's local remote configuration -- not the
+# manifest URL.
+#
+# Why this exists: `git fetch --all` (which the wave invokes via
+# `_mt_git_fetch_one`) hits every configured remote of the local repo
+# after applying `url.<base>.insteadOf` rewrites. The manifest URL is
+# just a hint. If a per-repo self-mapping `insteadOf` opts the repo out
+# of a host rewrite (longer prefix wins), or if extra remotes have been
+# added (e.g. `upstream`), the pre-warm based on the manifest URL alone
+# diverges from the wave and triggers stray YubiKey taps mid-wave.
+#
+# Argument: the name of an array of "url<US>path<US>slug" entries (same
+# format as _mt_git_pull_parallel_fetch_wave's $3).
+#
+# Output (stdout): one record per UNIQUE host, tab-separated:
+#   <host><TAB><source_url><TAB><source_path>
+# where <source_url> is the URL that yielded the host (the per-remote
+# effective post-`insteadOf` URL for existing repos, or the manifest URL
+# resolved via `git ls-remote --get-url` for clone-targets), and
+# <source_path> is the entry's path.
+#
+# Dedup: first occurrence wins for <source_url>/<source_path>. Order is
+# input-array order; within an entry, `git remote`'s output order
+# (alphabetical by remote name).
+_mt_git_pull_prewarm_hosts() {
+  local -n __pwh_entries=$1
+  local -A seen=()
+  # shellcheck disable=SC2034  # `slug` is read but unused at runtime; kept for symmetry with the wave function.
+  local entry="" url="" path="" slug="" name="" u="" host=""
+  local -a urls=()
+
+  local US=$'\x1f'
+  local TAB=$'\t'
+  for entry in "${__pwh_entries[@]}"; do
+    IFS="$US" read -r url path slug <<< "$entry"
+    # Defensive guard against manifest corruption: an empty $path would
+    # cause `git -C ""` to operate on $PWD, leaking results unrelated
+    # to this entry. Skip the entry rather than fail loudly.
+    [[ -z $path ]] && continue
+    urls=()
+
+    if git -C "$path" rev-parse --git-dir >/dev/null 2>&1; then
+      # rev-parse covers normal repos, linked worktrees, AND bare repos.
+      while IFS= read -r name; do
+        [[ -z $name ]] && continue
+        # `get-url` exits non-zero on missing config (caught by `||`);
+        # also guard against the rare case where it returns 0 with empty
+        # stdout (e.g. someone manually set the URL to "").
+        u=$(git -C "$path" remote get-url "$name" 2>/dev/null) || continue
+        [[ -n $u ]] && urls+=("$u")
+      done < <(git -C "$path" remote 2>/dev/null)
+    fi
+
+    # Fallback: no local repo (clone-target) or no usable remotes. Use
+    # MT-76 logic on the manifest URL.
+    if (( ${#urls[@]} == 0 )); then
+      u=$(git ls-remote --get-url "$url" 2>/dev/null) || u="$url"
+      [[ -z $u ]] && u="$url"
+      urls=("$u")
+    fi
+
+    for u in "${urls[@]}"; do
+      host=$(_mt_url_to_host "$u" 2>/dev/null) || continue
+      [[ -z $host ]] && continue
+      [[ -n ${seen[$host]:-} ]] && continue
+      seen[$host]=1
+      printf '%s%s%s%s%s\n' "$host" "$TAB" "$u" "$TAB" "$path"
+    done
+  done
+}
+
 # Run the parallel pre-warm + fetch wave.
 # Arguments:
 #   $1 - tmpdir for output capture
@@ -277,28 +349,22 @@ _mt_git_pull_parallel_fetch_wave() {
   # even if the underlying git fetch then errors. A pre-warm failure is
   # logged but does not abort the parallel pass; each repo will succeed
   # or fail individually.
+  #
+  # MT-80: hosts are computed from each entry's local remote config (not
+  # the manifest URL) so the pre-warm contacts the same hosts the wave
+  # will contact -- even when per-repo self-mapping insteadOf rules
+  # block a host rewrite, or extra remotes (e.g. `upstream`) have been
+  # added locally. The per-remote source_url is passed to fetch so the
+  # ControlMaster handshake uses the same URL the wave will use.
   local US=$'\x1f'
-  local -A seen_hosts=()
-  local entry url path slug host resolved_url
-  for entry in "${_wave_entries[@]}"; do
-    IFS="$US" read -r url path slug <<< "$entry"
-    # MT-76: resolve `insteadOf` rewrites before extracting the host, so
-    # we pre-warm the host that fetches will actually contact (not the
-    # raw manifest URL, which git may rewrite via url.<base>.insteadOf
-    # at fetch time). `git ls-remote --get-url` applies the rewrites
-    # without making any network call -- it's pure config lookup.
-    resolved_url=$(git ls-remote --get-url "$url" 2>/dev/null) || resolved_url="$url"
-    [[ -z "$resolved_url" ]] && resolved_url="$url"
-    host=$(_mt_url_to_host "$resolved_url" 2>/dev/null) || continue
-    [[ -z "$host" ]] && continue
-    if [[ -z "${seen_hosts[$host]:-}" ]]; then
-      seen_hosts[$host]=1
-      _mt_debug "Pre-warming SSH ControlMaster for host: $host (resolved from: $url)"
-      GIT_TERMINAL_PROMPT=0 _mt_git_fetch_one "$url" "$path" \
-        >/dev/null 2>>"$tmpdir/prewarm.err" || \
-        _mt_debug "Pre-warm fetch for $host failed; parallel pass will proceed"
-    fi
-  done
+  local entry url path slug
+  local prewarm_host prewarm_url prewarm_path TAB=$'\t'
+  while IFS="$TAB" read -r prewarm_host prewarm_url prewarm_path; do
+    _mt_debug "Pre-warming SSH ControlMaster for host: $prewarm_host (from: $prewarm_url)"
+    GIT_TERMINAL_PROMPT=0 _mt_git_fetch_one "$prewarm_url" "$prewarm_path" \
+      >/dev/null 2>>"$tmpdir/prewarm.err" || \
+      _mt_debug "Pre-warm fetch for $prewarm_host failed; parallel pass will proceed"
+  done < <(_mt_git_pull_prewarm_hosts _wave_entries)
 
   # Parallel fetch wave. `wait -n` requires bash 4.3+. Caller has already
   # gated on that. Disable errexit around the wait loop -- a non-zero
