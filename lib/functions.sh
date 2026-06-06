@@ -1,15 +1,18 @@
 # Set default log level if not specified
 : "${MT_LOG_LEVEL:=INFO}"
 
-# Bash 3.2 compatible case conversion helpers
-# These replace ${var^^} and ${var,,} which require bash 4+
-_mt_uppercase() {
-  echo "$1" | tr '[:lower:]' '[:upper:]'
-}
-
-_mt_lowercase() {
-  echo "$1" | tr '[:upper:]' '[:lower:]'
-}
+# Case conversion helpers.
+# On bash 4+ use the ${var^^}/${var,,} builtins (no subprocess). These run
+# hundreds of times during shell startup; piping through `tr` forked a process
+# each call and dominated metool's startup cost. Keep the tr-based path as a
+# fallback for bash 3.2 (macOS system bash), which lacks the case operators.
+if ((BASH_VERSINFO[0] >= 4)); then
+  _mt_uppercase() { local s="$1"; printf '%s\n' "${s^^}"; }
+  _mt_lowercase() { local s="$1"; printf '%s\n' "${s,,}"; }
+else
+  _mt_uppercase() { echo "$1" | tr '[:lower:]' '[:upper:]'; }
+  _mt_lowercase() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
+fi
 
 # Columnise - format tab-separated output into aligned columns
 # Usage: command | columnise [--force]
